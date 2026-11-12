@@ -109,7 +109,7 @@ curl -F "file=@a.png" -F "layout=gray8" \
 
 ## 推送到 GitHub 与 CI/CD
 
-远端仓库：**https://github.com/iamartinlong/CodecLoom.git**（默认分支 `main`，已首次推送）。工作流在 `.github/workflows/ci.yml`，push / PR 自动运行，**不需要配置任何 Secret**（用内置 `GITHUB_TOKEN`）。
+远端仓库：`https://github.com/iamartinlong/CodecLoom.git`（默认分支 `main`，已首次推送）。工作流在 `.github/workflows/ci.yml`，push / PR 自动运行，**不需要配置任何 Secret**（用内置 `GITHUB_TOKEN`）。
 
 ```bash
 # 已有仓库：直接克隆
@@ -135,14 +135,14 @@ git push -u origin main
 
 | 触发 | 动作 | 产物 |
 | --- | --- | --- |
-| push 到 `main` / `master` | 构建并推送容器镜像到 GHCR | `ghcr.io/iamartinlong/codecloom:latest`、`:<branch>`、`:<short-sha>` |
+| push 到 `main` / `master` | 构建并推送容器镜像到 GHCR | `ghcr.io/iamartinlong/codecloom:latest`、`:main`、`:sha-<短 SHA>` |
 | push `v*` tag | 同上 + 创建 GitHub Release | `CodecLoom-win-x64-single.zip`、`CodecLoom-win-x64-portable.zip`、`CodecLoom-api.zip`（含自动生成的 release notes） |
 
 ```bash
 # 发布一个版本
 git tag v1.0.0 && git push origin v1.0.0
 
-# 拉取镜像（首次需在 GitHub 包设置里把 package 可见性改为 Public，或先 docker login ghcr.io）
+# 拉取镜像（GHCR 包已设为 Public，匿名可直接 pull）
 docker run --rm -p 5080:8080 ghcr.io/iamartinlong/codecloom:latest
 curl http://127.0.0.1:5080/api/ready
 ```
