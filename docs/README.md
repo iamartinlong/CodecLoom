@@ -9,6 +9,7 @@
 | [03-待办清单.md](03-待办清单.md) | 可执行待办，含优先级、状态、验收标准 | 每轮推进前后 |
 | [04-工作日志.md](04-工作日志.md) | 按轮次记录实跑数据、踩坑与决策 | 每完成一轮工作 |
 | [05-工作交接.md](05-工作交接.md) | **接手人入口**：资产与权限、系统全景、运行、验证、CI/CD 发版、风险与排障 | 架构 / 远端 / 基线 / 权限变化时 |
+| [06-模块集成评估-SimdGcdrNet.md](06-模块集成评估-SimdGcdrNet.md) | 候选模块：文档图像增强库的事实核对、JIT/AOT 实测、模块设计与落地分期 | 评估结论或落地范围变化时 |
 
 另有本地智能体工作区记忆（`.workbuddy/memory/`，已被 `.gitignore` 排除，不入库）；`docs/04-工作日志.md` 是它的对外可读版本，两者事实应保持一致。**新接手的人请先读 `05-工作交接.md`。**
 
@@ -71,7 +72,8 @@ dotnet publish SimdCodecsViewer/SimdCodecsViewer.csproj -c Release -r win-x64 \
 
 ## 下一步
 
-P0–P2 全部收口，剩余均为外部条件项：
+P0–P2 全部收口，剩余均为外部条件项与待决策项：
+- **候选模块 `SimdCodecs.Enhance`（文档图像增强 / SimdGcdrNet）**：评估与 JIT + NativeAOT PoC 已完成，尚未改动产品代码；落地范围与四个决策点见 `06-模块集成评估-SimdGcdrNet.md` 第 8 节。
 - 本机 docker build / run 实测（待 Docker daemon 启动；远端 CI 已构建成功）。
 - MSIX 安装验证（需管理员导入证书后 `Add-AppxPackage`）。
 - 首个 `v*` tag 触发的 GitHub Release 产物链路待验证（run #1 无 tag，按预期跳过）。

@@ -159,6 +159,6 @@ MSIX 用本地自签证书签名，**私钥不入库、CI 不产出 MSIX**；公
 - JBIG2 / JPEG 2000 的真实样本链路未跑（下载失败，未伪造结果）；水印是几何图案而非文字字形（避免引入字体引擎破坏零原生依赖）。
 - 上游库年轻且单人维护：通过精确锁版本 `[2.0.0]` + `ICodecService` 抽象层缓解。
 
-详细决策、阶段验收与每轮实跑证据见 [docs/README.md](docs/README.md)；**接手开发 / 运维 / 发版请先读 [docs/05-工作交接.md](docs/05-工作交接.md)**。
+详细决策、阶段验收与每轮实跑证据见 [docs/README.md](docs/README.md)；**接手开发 / 运维 / 发版请先读 [docs/05-工作交接.md](docs/05-工作交接.md)**。候选模块「文档图像增强（SimdGcdrNet）」的可行性评估与 JIT / NativeAOT 实测见 [docs/06-模块集成评估-SimdGcdrNet.md](docs/06-模块集成评估-SimdGcdrNet.md)（**尚未集成进产品**）。
 
-源码采用 [MIT 许可](LICENSE)；依赖的 Sdcb.SimdCodecs 与 Avalonia 同为 MIT。HEVC / HEIF 的专利授权不在 MIT 范围内，商用前另行评估。
+源码采用 [MIT 许可](LICENSE)；已引入的依赖 `Sdcb.SimdCodecs` 与 Avalonia 同为 MIT。HEVC / HEIF 的专利授权不在 MIT 范围内，商用前另行评估。若后续启用候选的文档增强模块，其引擎为 Apache-2.0、模型为 MIT，需按评估文档第 5.3 节补齐第三方声明后再分发。
