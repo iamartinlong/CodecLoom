@@ -107,6 +107,7 @@ public sealed class MainWindow : Window
         Foreground = Ui.B(Ui.Text);
         FontFamily = new FontFamily("Microsoft YaHei UI, Segoe UI, Consolas");
         Closing += (_, _) => PersistSettings();
+        DarkTitleBar.Attach(this); // Windows：标题栏跟随暗色主题（含 Win11 同色底）
 
         // ---------- 顶部工具栏 ----------
         var openButton = Button(L10n.Tr("打开图片…"), OnOpen);

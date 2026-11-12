@@ -38,7 +38,8 @@ public static class GuiSmoke
             CodecService.Write(pixels, w, h, png, ImageFormat.Png);
 
             var window = new MainWindow();
-            Check(window.Title?.Contains("工作台") == true,
+            // 语言随本机 settings.json（zh/en 都合法），断言只锁定语言无关的品牌前缀
+            Check(window.Title?.Contains("CodecLoom") == true,
                 $"MainWindow 控件树构建成功：{window.Title}");
             Check(window.DocumentControlsReady,
                 "文档智能面板已挂载（opt-in 开关 / 结果框 / 三个动作按钮）");

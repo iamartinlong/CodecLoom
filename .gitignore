@@ -7,6 +7,7 @@ aot-probe/
 aot-ci/
 aot-ci-out/
 aot-batch-out/
+aot-darkbar/
 aot-selftest-out/
 ci-publish/
 ci-out/
@@ -57,6 +58,7 @@ ui-align-*.png
 .git-commit-msg.tmp
 aot-self-test.log
 aot-self-test.err
+aot-darkbar-test.log
 aot-selftest.log
 
 # Inno Setup 编译输出（走 GitHub Release 而非源码仓库）
