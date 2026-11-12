@@ -34,6 +34,11 @@ public sealed class AppSettings
     public bool Invert { get; set; }
     public int LayoutIndex { get; set; }         // 裸像素布局下拉
 
+    /// <summary>文档智能模块 opt-in 开关（默认关闭：不构造推理会话、不占内存）。</summary>
+    public bool DocumentEnabled { get; set; }
+    public bool DocumentCtc { get; set; }        // 是否附带逐字符估算框
+    public bool DocumentCompare { get; set; }    // 一步式是否同时跑原图 OCR 对比
+
     /// <summary>深拷贝，供自检比对 round-trip 结果。</summary>
     public AppSettings Clone() => new()
     {
@@ -54,7 +59,10 @@ public sealed class AppSettings
         Contrast = Contrast,
         Grayscale = Grayscale,
         Invert = Invert,
-        LayoutIndex = LayoutIndex
+        LayoutIndex = LayoutIndex,
+        DocumentEnabled = DocumentEnabled,
+        DocumentCtc = DocumentCtc,
+        DocumentCompare = DocumentCompare
     };
 }
 
@@ -106,6 +114,10 @@ public static class SettingsService
             s.Grayscale = Get("grayscale", s.Grayscale, e => e.GetBoolean());
             s.Invert = Get("invert", s.Invert, e => e.GetBoolean());
             s.LayoutIndex = Get("layoutIndex", s.LayoutIndex, e => e.GetInt32());
+            // 旧版本设置文件没有这三个键时自然回退 false（opt-in 不变）。
+            s.DocumentEnabled = Get("documentEnabled", s.DocumentEnabled, e => e.GetBoolean());
+            s.DocumentCtc = Get("documentCtc", s.DocumentCtc, e => e.GetBoolean());
+            s.DocumentCompare = Get("documentCompare", s.DocumentCompare, e => e.GetBoolean());
             return s;
         }
         catch
@@ -153,6 +165,9 @@ public static class SettingsService
         Bool("grayscale", s.Grayscale);
         Bool("invert", s.Invert);
         Int("layoutIndex", s.LayoutIndex);
+        Bool("documentEnabled", s.DocumentEnabled);
+        Bool("documentCtc", s.DocumentCtc);
+        Bool("documentCompare", s.DocumentCompare);
 
         // 去掉最后一项的逗号，保持合法 JSON。
         sb.Remove(sb.Length - 2, 1);

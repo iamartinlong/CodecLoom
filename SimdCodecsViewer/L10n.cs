@@ -72,6 +72,20 @@ public static class L10n
         ["所有文件"] = "All files",
         ["追加到队列"] = "Append to queue",
         ["语言切换将在重启后生效"] = "Language change takes effect after restart",
+        ["文档智能（扫描件增强 / 文字识别）"] = "Document AI (scan enhancement / OCR)",
+        ["手机拍文档去阴影与透印，再识别文字；CPU · tiny 模型 · 单帧 ≤ 4 MP"] =
+            "Remove shadows / show-through from camera-captured docs, then recognize text; CPU · tiny model · single frame ≤ 4 MP",
+        ["启用文档智能（首次点击加载模型）"] = "Enable Document AI (loads models on first use)",
+        ["逐字符框"] = "Character boxes",
+        ["对比增强前后"] = "Compare before / after",
+        ["增强到预览"] = "Enhance preview",
+        ["识别文字"] = "Recognize text",
+        ["增强 + 识别"] = "Enhance + OCR",
+        ["识别结果（可选中复制）"] = "Recognized text (select to copy)",
+        ["未启用文档智能。勾选上方开关后即可使用，首次调用会加载约 31 MB 嵌入模型。"] =
+            "Document AI is off. Enable the switch above; the first call loads ~31 MB of embedded models.",
+        ["文档智能就绪 · 纯 CPU · tiny 模型"] = "Document AI ready · CPU only · tiny model",
+        ["文档智能 ↓"] = "Document AI ↓",
     }.ToFrozenDictionary();
 
     /// <summary>取文案：zh 原样返回（不查表），en 查表并回退原文。</summary>

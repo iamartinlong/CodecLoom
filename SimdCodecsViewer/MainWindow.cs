@@ -12,6 +12,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Sdcb.SimdCodecs.Abstractions;
+using SimdCodecs.Document;
 using SimdCodecs.Processing;
 using PixelRect = Sdcb.SimdCodecs.Abstractions.PixelRect;
 using Path = System.IO.Path;
@@ -69,6 +70,19 @@ public sealed class MainWindow : Window
     private readonly Button _clearCropButton;
     private readonly ListBox _list;
     private readonly DispatcherTimer _playTimer;
+
+    // ---- 文档智能（opt-in）：单帧增强 / OCR / 一步式管线 ----
+    private readonly CheckBox _docEnabledBox;
+    private readonly CheckBox _docCtcBox;
+    private readonly CheckBox _docCompareBox;
+    private readonly TextBox _docOutput;
+    private readonly TextBlock _docSummary;
+    private readonly Button _docEnhanceButton;
+    private readonly Button _docOcrButton;
+    private readonly Button _docPipelineButton;
+    private readonly ScrollViewer _rightScroll;
+    private DocumentRuntime? _document;
+    private bool _docBusy;
 
     private LoadedImage? _current;
     private PixelRect? _baseRegion;
@@ -163,6 +177,28 @@ public sealed class MainWindow : Window
             Text = L10n.Tr("未应用处理"), FontSize = 11, Opacity = 0.8, TextWrapping = TextWrapping.Wrap
         };
 
+        _docEnabledBox = new CheckBox
+        {
+            Content = L10n.Tr("启用文档智能（首次点击加载模型）"), FontSize = 11
+        };
+        _docCtcBox = new CheckBox { Content = L10n.Tr("逐字符框"), FontSize = 11 };
+        _docCompareBox = new CheckBox { Content = L10n.Tr("对比增强前后"), FontSize = 11 };
+        _docOutput = new TextBox
+        {
+            Height = 108, FontSize = 11.5, AcceptsReturn = true, IsReadOnly = true,
+            TextWrapping = TextWrapping.Wrap,
+            Watermark = L10n.Tr("识别结果（可选中复制）")
+        };
+        _docSummary = new TextBlock
+        {
+            Text = L10n.Tr("未启用文档智能。勾选上方开关后即可使用，首次调用会加载约 31 MB 嵌入模型。"),
+            FontSize = 10.5, Opacity = 0.75, TextWrapping = TextWrapping.Wrap
+        };
+        _docEnhanceButton = Button(L10n.Tr("增强到预览"), OnDocEnhance);
+        _docOcrButton = Button(L10n.Tr("识别文字"), OnDocOcr);
+        _docPipelineButton = Button(L10n.Tr("增强 + 识别"), OnDocPipeline);
+        _docEnabledBox.IsCheckedChanged += (_, _) => OnDocumentToggle();
+
         var langBox = new ComboBox
         {
             ItemsSource = new[] { "中文", "English" },
@@ -179,6 +215,9 @@ public sealed class MainWindow : Window
             _status!.Text = L10n.Tr("语言切换将在重启后生效");
         };
 
+        // 右栏内容较长（信息 + 批量 + 处理 + 文档智能），给新模块一个可见的快捷入口：
+        // 一键启用并滚动到文档卡片，避免用户以为功能没做。
+        var docShortcut = Button(L10n.Tr("文档智能 ↓"), (_, _) => FocusDocumentPanel());
         var toolbar = new StackPanel
         {
             Orientation = Orientation.Horizontal,
@@ -190,7 +229,7 @@ public sealed class MainWindow : Window
                 Hint(L10n.Tr("解码缩放")), _scaleBox, _orientBox,
                 new Separator(),
                 Hint(L10n.Tr("导出格式")), _formatBox, Hint(L10n.Tr("质量")), _quality, _exportButton,
-                new Separator(), Hint(L10n.Tr("语言")), langBox
+                new Separator(), Hint(L10n.Tr("语言")), langBox, docShortcut
             }
         };
         foreach (Control c in toolbar.Children) c.VerticalAlignment = VerticalAlignment.Center;
@@ -465,13 +504,46 @@ public sealed class MainWindow : Window
             }
         };
 
+        var documentPanel = new StackPanel
+        {
+            Spacing = 6,
+            Margin = new Thickness(0, 2),
+            Children =
+            {
+                new TextBlock
+                {
+                    Text = L10n.Tr("文档智能（扫描件增强 / 文字识别）"),
+                    FontWeight = FontWeight.SemiBold
+                },
+                new TextBlock
+                {
+                    Text = L10n.Tr("手机拍文档去阴影与透印，再识别文字；CPU · tiny 模型 · 单帧 ≤ 4 MP"),
+                    FontSize = 10, Opacity = 0.65, TextWrapping = TextWrapping.Wrap
+                },
+                _docEnabledBox,
+                new StackPanel
+                {
+                    Orientation = Orientation.Horizontal, Spacing = 12,
+                    Children = { _docCtcBox, _docCompareBox }
+                },
+                new StackPanel
+                {
+                    Orientation = Orientation.Horizontal, Spacing = 6,
+                    Children = { _docEnhanceButton, _docOcrButton, _docPipelineButton }
+                },
+                _docOutput,
+                _docSummary
+            }
+        };
+
         var rightContent = new StackPanel
         {
             Children =
             {
                 _info,
                 InsetCard(batchPanel),
-                InsetCard(processPanel)
+                InsetCard(processPanel),
+                InsetCard(documentPanel)
             }
         };
         var rightPanel = new Border
@@ -483,7 +555,7 @@ public sealed class MainWindow : Window
             BorderThickness = new Thickness(1),
             Margin = new Thickness(4, 4, 8, 4),
             ClipToBounds = true,
-            Child = new ScrollViewer
+            Child = _rightScroll = new ScrollViewer
             {
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
                 Content = rightContent
@@ -562,6 +634,10 @@ public sealed class MainWindow : Window
         if (_settings.ResizeW > 0) _resizeW.Text = _settings.ResizeW.ToString();
         if (_settings.ResizeH > 0) _resizeH.Text = _settings.ResizeH.ToString();
         if (!string.IsNullOrEmpty(_settings.Watermark)) _watermark.Text = _settings.Watermark;
+        _docEnabledBox.IsChecked = _settings.DocumentEnabled;
+        _docCtcBox.IsChecked = _settings.DocumentCtc;
+        _docCompareBox.IsChecked = _settings.DocumentCompare;
+        UpdateDocumentControls();
     }
 
     /// <summary>窗口关闭时把当前控件状态写回 %APPDATA%/SimdCodecsViewer/settings.json。</summary>
@@ -587,6 +663,9 @@ public sealed class MainWindow : Window
             _settings.Grayscale = _grayBox.IsChecked == true;
             _settings.Invert = _invertBox.IsChecked == true;
             _settings.LayoutIndex = _layoutBox.SelectedIndex;
+            _settings.DocumentEnabled = _docEnabledBox.IsChecked == true;
+            _settings.DocumentCtc = _docCtcBox.IsChecked == true;
+            _settings.DocumentCompare = _docCompareBox.IsChecked == true;
             SettingsService.Save(_settings);
         }
         catch
@@ -803,6 +882,20 @@ public sealed class MainWindow : Window
         bool has = _current is not null;
         _exportButton.IsEnabled = has;
         _clearCropButton.IsEnabled = has && _baseRegion is not null;
+        UpdateDocumentControls();
+    }
+
+    private void UpdateDocumentControls()
+    {
+        bool enabled = _docEnabledBox.IsChecked == true;
+        bool ready = enabled && _current is not null && !_docBusy;
+        _docEnhanceButton.IsEnabled = ready;
+        _docOcrButton.IsEnabled = ready;
+        _docPipelineButton.IsEnabled = ready;
+        if (!enabled)
+            _docSummary.Text = L10n.Tr("未启用文档智能。勾选上方开关后即可使用，首次调用会加载约 31 MB 嵌入模型。");
+        else if (_document is null)
+            _docSummary.Text = L10n.Tr("文档智能就绪 · 纯 CPU · tiny 模型");
     }
 
     private void UpdateFrameControls(LoadedImage image)
@@ -1132,6 +1225,174 @@ public sealed class MainWindow : Window
         }
         catch (Exception ex) { _status.Text = $"裸像素导出失败：{ex.Message}"; }
     }
+
+    // ================= 文档智能（增强 / OCR） =================
+
+    /// <summary>opt-in 开关：只构造 Lazy 壳，真正点按钮时才加载约 31 MB 嵌入模型。</summary>
+    private void OnDocumentToggle()
+    {
+        if (_docEnabledBox.IsChecked == true)
+        {
+            _document ??= new DocumentRuntime(DocumentOptions.ForLocal());
+            _docSummary.Text = L10n.Tr("文档智能就绪 · 纯 CPU · tiny 模型");
+        }
+        else
+        {
+            _docSummary.Text = L10n.Tr("未启用文档智能。勾选上方开关后即可使用，首次调用会加载约 31 MB 嵌入模型。");
+        }
+        UpdateDocumentControls();
+    }
+
+    /// <summary>取当前预览帧，并在进推理前用 DocumentLimits 卡住大图 / 多帧。</summary>
+    private DocumentFrame? CurrentDocumentFrame()
+    {
+        if (_docEnabledBox.IsChecked != true || _docBusy) return null;
+        if (_current is null)
+        {
+            _status.Text = "先打开一张图片再使用文档智能";
+            return null;
+        }
+        DocumentRuntime runtime = _document ??= new DocumentRuntime(DocumentOptions.ForLocal());
+        DocumentLimits.Verdict verdict = runtime.Limits.Validate(
+            _current.Width, _current.Height, _current.FrameCount);
+        if (!verdict.Accepted)
+        {
+            _status.Text = verdict.Reason;
+            _docSummary.Text = verdict.Reason;
+            return null;
+        }
+        return new DocumentFrame(_current.Pixels, _current.Width, _current.Height,
+            _current.Stride, _current.FrameCount);
+    }
+
+    private void SetDocBusy(bool busy, string message)
+    {
+        _docBusy = busy;
+        _status.Text = message;
+        UpdateDocumentControls();
+    }
+
+    /// <summary>
+    /// 统一执行入口：所有推理都在 DocumentRuntime 的 Task.Run 上跑，不占 UI 线程；
+    /// 按钮期间禁用，超时后由 WaitAsync 提前返回（CPU 内核本身不可中断）。
+    /// </summary>
+    private async Task<DocumentResult?> RunDocumentAsync(DocumentRequest request)
+    {
+        DocumentFrame? frame = CurrentDocumentFrame();
+        if (frame is null) return null;
+        DocumentRuntime runtime = _document!;
+        SetDocBusy(true, "文档推理中…（首次调用会加载模型）");
+        try
+        {
+            return await runtime.RunAsync(frame, request).WaitAsync(runtime.Timeout);
+        }
+        catch (DocumentRejectedException ex)
+        {
+            _docSummary.Text = ex.Message;
+            _status.Text = $"文档推理被拒绝：{ex.Message}";
+        }
+        catch (DocumentBusyException ex)
+        {
+            _docSummary.Text = ex.Message;
+            _status.Text = "文档推理超时：" + ex.Message;
+        }
+        catch (TimeoutException)
+        {
+            _docSummary.Text = $"超过 {runtime.Timeout.TotalSeconds:F0}s 未完成，请换更小的图片。";
+            _status.Text = _docSummary.Text;
+        }
+        catch (Exception ex)
+        {
+            _docSummary.Text = $"{ex.GetType().Name}: {ex.Message}";
+            _status.Text = "文档推理失败：" + _docSummary.Text;
+        }
+        finally
+        {
+            _docBusy = false;
+            UpdateDocumentControls();
+        }
+        return null;
+    }
+
+    /// <summary>把增强后的 Bgra32 直接换成新的预览帧，「导出当前」即可落盘。</summary>
+    private void ApplyEnhancedPreview(DocumentResult r)
+    {
+        LoadedImage? previous = _current;
+        if (previous is null || r.EnhancedPixels is null) return;
+        var enhanced = new LoadedImage
+        {
+            Pixels = r.EnhancedPixels,
+            Width = r.Width,
+            Height = r.Height,
+            Stride = r.Stride,
+            Info = previous.Info,
+            Metadata = previous.Metadata,
+            DecodeMs = previous.DecodeMs,
+            FileBytes = previous.FileBytes,
+            Path = previous.Path,
+            Scale = previous.Scale,
+            Oriented = previous.Oriented,
+            Region = previous.Region,
+            FrameIndex = previous.FrameIndex,
+            FrameCount = previous.FrameCount,
+            FrameDuration = previous.FrameDuration
+        };
+        ApplyImage(enhanced);
+    }
+
+    private async void OnDocEnhance(object? sender, RoutedEventArgs e)
+    {
+        DocumentResult? r = await RunDocumentAsync(new DocumentRequest(Enhance: true, Ocr: false));
+        if (r?.Enhance is null) return;
+        ApplyEnhancedPreview(r);
+        _docSummary.Text = $"增强完成 · {r.Enhance.ElapsedMs:F0} ms · {r.Width}×{r.Height} · " +
+                           $"{r.Enhance.Backend}{(r.Enhance.Degraded ? "（GPU 降级）" : "")}";
+        _status.Text = "文档照片增强已应用到预览，可直接导出当前。";
+    }
+
+    private async void OnDocOcr(object? sender, RoutedEventArgs e)
+    {
+        bool ctc = _docCtcBox.IsChecked == true;
+        DocumentResult? r = await RunDocumentAsync(
+            new DocumentRequest(Enhance: false, Ocr: true, Ctc: ctc));
+        if (r?.Ocr is null) return;
+        _docOutput.Text = string.IsNullOrWhiteSpace(r.Ocr.Text) ? "（未检测到文本行）" : r.Ocr.Text;
+        int boxes = r.Ocr.Lines.Sum(l => l.Characters?.Length ?? 0);
+        _docSummary.Text = $"识别完成 · {r.Ocr.LineCount} 行 / {r.Ocr.CharCount} 字符 · " +
+                           $"{r.Ocr.ElapsedMs:F0} ms · {r.Ocr.Backend}" +
+                           (ctc ? $" · {boxes} 个估算字符框" : "");
+        _status.Text = "文字识别完成，结果已显示在右栏（可选中复制）。";
+    }
+
+    private async void OnDocPipeline(object? sender, RoutedEventArgs e)
+    {
+        bool ctc = _docCtcBox.IsChecked == true;
+        bool compare = _docCompareBox.IsChecked == true;
+        DocumentResult? r = await RunDocumentAsync(
+            new DocumentRequest(Enhance: true, Ocr: true, Compare: compare, Ctc: ctc));
+        if (r?.Ocr is null) return;
+        ApplyEnhancedPreview(r);
+        _docOutput.Text = string.IsNullOrWhiteSpace(r.Ocr.Text) ? "（未检测到文本行）" : r.Ocr.Text;
+        string before = r.OriginalOcr is { } o
+            ? $"原图 {o.LineCount} 行 / {o.CharCount} 字符 → " : "";
+        _docSummary.Text = $"{before}增强后 {r.Ocr.LineCount} 行 / {r.Ocr.CharCount} 字符 · " +
+                           $"增强 {r.Enhance?.ElapsedMs:F0} ms + 识别 {r.Ocr.ElapsedMs:F0} ms";
+        _status.Text = "增强 + 识别完成：预览已替换为增强图，文本在右栏。";
+    }
+
+    /// <summary>工具栏快捷入口：启用模块并把右栏滚到文档卡片。</summary>
+    internal void FocusDocumentPanel()
+    {
+        _docEnabledBox.IsChecked = true;
+        _rightScroll.Offset = new Vector(0,
+            Math.Max(0, _rightScroll.Extent.Height - _rightScroll.Viewport.Height));
+        _status.Text = "文档智能已启用 · 右栏下方可选择「增强 / 识别文字 / 增强 + 识别」";
+    }
+
+    /// <summary>GUI 冒烟断言用：文档面板控件已构造且三个动作齐备。</summary>
+    internal bool DocumentControlsReady =>
+        _docEnabledBox is not null && _docOutput is not null &&
+        _docEnhanceButton is not null && _docOcrButton is not null && _docPipelineButton is not null;
 
     // ================= 小工具 =================
 

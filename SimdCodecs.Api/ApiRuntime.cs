@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Logging;
 using Sdcb.SimdCodecs;
 using Sdcb.SimdCodecs.Abstractions;
+using SimdCodecs.Document;
 using SimdCodecs.Processing;
 
 namespace SimdCodecs.Api;
@@ -271,7 +272,8 @@ public static class ApiRuntime
 
     public static void Map(WebApplication app)
     {
-        app.MapGet("/api/ready", (ApiRuntimeOptions options, ApiMetrics metrics) =>
+        app.MapGet("/api/ready", (ApiRuntimeOptions options, ApiMetrics metrics,
+            DocumentRuntime document) =>
         {
             bool heif = ImageCodecs.IsDecodable(ImageFormat.Heif);
             bool png = ImageCodecs.IsDecodable(ImageFormat.Png);
@@ -284,7 +286,10 @@ public static class ApiRuntime
                 checks = new { heifRegistered = heif, pngDecodable = png, processingLoaded = processing },
                 uptimeSeconds = Math.Round((DateTimeOffset.UtcNow - metrics.StartedAt).TotalSeconds, 1),
                 authEnabled = options.Auth.Enabled,
-                rateLimitEnabled = options.RateLimit.Enabled
+                rateLimitEnabled = options.RateLimit.Enabled,
+                documentEnabled = document.Options.Enabled,
+                documentModel = "tiny",
+                documentBackend = document.Options.Backend
             };
             return ready ? Results.Ok(payload) : Results.Problem(
                 title: "Not ready", detail: "编解码器或处理层自检未通过。", statusCode: 503);

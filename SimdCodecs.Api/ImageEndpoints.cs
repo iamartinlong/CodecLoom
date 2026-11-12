@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Sdcb.SimdCodecs;
 using Sdcb.SimdCodecs.Abstractions;
 using SimdCodecs.Core;
+using SimdCodecs.Document;
 using SimdCodecs.Processing;
 
 namespace SimdCodecs.Api;
@@ -25,18 +26,22 @@ public static class ImageEndpoints
     private const int MaxBatchFiles = 20;
     private const int MaxZipFrames = 24;
 
-    private static readonly ImageLimits Limits = new();
-    private static readonly SemaphoreSlim DecoderGate =
+    internal static readonly ImageLimits Limits = new();
+    internal static readonly SemaphoreSlim DecoderGate =
         new(Math.Clamp(Environment.ProcessorCount, 2, 8));
 
     /// <summary>
     /// 端点层只认 ICodecService。Map() 时从 DI 容器解析并缓存，
     /// 因此这个静态类无需把实现类型写死，替换实现不必改任何端点代码。
     /// </summary>
-    private static ICodecService Codec { get; set; } = CodecServices.Simd;
+    internal static ICodecService Codec { get; private set; } = CodecServices.Simd;
 
-    private sealed record UploadFile(string Name, byte[] Data);
-    private sealed record Upload(IReadOnlyList<UploadFile> Files, IFormCollection Form);
+    // 文档端点复用同一套上传解析 / 闸门 / 解码约定，因此这几个基础设施是程序集内可见的。
+    internal sealed record UploadFile(string Name, byte[] Data);
+    internal sealed record Upload(IReadOnlyList<UploadFile> Files, IFormCollection Form);
+    internal sealed record Conversion(
+        ExportTarget Target, int Quality, int Scale, bool Orient, int Frame,
+        PixelRect? Region, BatchPreset? Preset, bool AllFrames);
 
     public static void Map(WebApplication app)
     {
@@ -60,10 +65,10 @@ public static class ImageEndpoints
 
     // ---------------- 元信息 ----------------
 
-    private static IResult Health() => Results.Ok(new
+    private static IResult Health(DocumentRuntime document) => Results.Ok(new
     {
-        service = "SimdCodecs Image API",
-        version = "1.0.0",
+        service = "CodecLoom Image API",
+        version = "1.1.0",
         runtime = Environment.Version.ToString(),
         heifRegistered = Codec.HeifEnabled,
         pureManaged = true,
@@ -78,12 +83,14 @@ public static class ImageEndpoints
             maxFilesPerBatch = MaxBatchFiles,
             maxFramesPerZip = MaxZipFrames
         },
+        document = document.Snapshot(),
         endpoints = new[]
         {
             "GET  /api/health", "GET  /api/formats", "GET  /api/presets",
             "POST /api/inspect", "POST /api/convert", "POST /api/thumbnail",
             "POST /api/batch", "POST /api/frames",
-            "POST /api/process", "POST /api/pixels", "GET  /"
+            "POST /api/process", "POST /api/pixels",
+            "POST /api/enhance", "POST /api/ocr", "POST /api/document", "GET  /"
         }
     });
 
@@ -489,7 +496,24 @@ public static class ImageEndpoints
 
     // ---------------- 基础设施 ----------------
 
-    private static async Task<IResult> Safe(Func<Task<IResult>> action)
+    /// <summary>
+    /// 文档端点与 /api/process 共用的单帧解码路径：同一份 scale / orient / region / frame 语义，
+    /// 同一个 DecoderGate，避免为三个新端点复制一套上传与解码逻辑。
+    /// </summary>
+    internal static async Task<LoadedImage> DecodeSingleAsync(
+        UploadFile file, IFormCollection form, CancellationToken ct)
+    {
+        Conversion spec = ReadConversion(form);
+        await DecoderGate.WaitAsync(ct);
+        try
+        {
+            return await Task.Run(() => Codec.Load(file.Data, file.Name, spec.Scale, spec.Orient,
+                spec.Region, spec.Frame, ct), ct);
+        }
+        finally { DecoderGate.Release(); }
+    }
+
+    internal static async Task<IResult> Safe(Func<Task<IResult>> action)
     {
         try { return await action(); }
         catch (ApiException ex)
@@ -508,7 +532,7 @@ public static class ImageEndpoints
         }
     }
 
-    private static async Task<Upload> ReadUploadAsync(HttpContext ctx, CancellationToken ct)
+    internal static async Task<Upload> ReadUploadAsync(HttpContext ctx, CancellationToken ct)
     {
         if (!ctx.Request.HasFormContentType)
             throw new ApiException(415, "需要 multipart/form-data 上传，文件字段名 file 或 files。");
@@ -531,7 +555,7 @@ public static class ImageEndpoints
         return new Upload(files, form);
     }
 
-    private static string SafeName(string raw)
+    internal static string SafeName(string raw)
     {
         string name = Path.GetFileName(raw.Replace('\\', '/'));
         if (string.IsNullOrWhiteSpace(name)) name = "upload";
@@ -549,12 +573,8 @@ public static class ImageEndpoints
         return candidate;
     }
 
-    private sealed record Conversion(
-        ExportTarget Target, int Quality, int Scale, bool Orient, int Frame,
-        PixelRect? Region, BatchPreset? Preset, bool AllFrames);
-
     /// <summary>预设只填充「调用方没有显式指定」的字段，显式参数永远优先。</summary>
-    private static Conversion ReadConversion(IFormCollection form)
+    internal static Conversion ReadConversion(IFormCollection form)
     {
         BatchPreset? preset = BatchPresets.Find(ReadString(form, "preset"));
         ExportTarget target = preset is not null && ReadString(form, "target") is null
@@ -597,14 +617,14 @@ public static class ImageEndpoints
         return new PixelRect(x, y, w, h);
     }
 
-    private static string? ReadString(IFormCollection form, string key) =>
+    internal static string? ReadString(IFormCollection form, string key) =>
         form.TryGetValue(key, out var value) ? value.ToString() : null;
 
-    private static int ReadInt(IFormCollection form, string key, int fallback, int min, int max) =>
+    internal static int ReadInt(IFormCollection form, string key, int fallback, int min, int max) =>
         int.TryParse(ReadString(form, key), NumberStyles.Integer, CultureInfo.InvariantCulture, out int n)
             ? Math.Clamp(n, min, max) : fallback;
 
-    private static bool ReadBool(IFormCollection form, string key, bool fallback) =>
+    internal static bool ReadBool(IFormCollection form, string key, bool fallback) =>
         ReadString(form, key)?.ToLowerInvariant() switch
         {
             "1" or "true" or "on" or "yes" => true,

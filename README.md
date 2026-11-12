@@ -1,10 +1,10 @@
 # CodecLoom
 
-> **纯托管图片 I/O 工作台** · 仓库 [`iamartinlong/CodecLoom`](https://github.com/iamartinlong/CodecLoom) · 中文别称「解码织台」
+> **纯托管图片 I/O + 文档智能工作台** · 仓库 [`iamartinlong/CodecLoom`](https://github.com/iamartinlong/CodecLoom) · 中文别称「解码织台」
 
-基于 [Sdcb.SimdCodecs 2.0](https://www.nuget.org/packages/Sdcb.SimdCodecs) 的**纯托管图片 I/O 工作台**：一个零原生依赖的编解码核心，同时驱动 Avalonia 桌面客户端、命令行批量工具、ASP.NET Core API 与 Web 测试台。
+基于 [Sdcb.SimdCodecs 2.0](https://www.nuget.org/packages/Sdcb.SimdCodecs) 的**纯托管图片工作台**：一个零原生依赖的编解码核心，同时驱动 Avalonia 桌面客户端、命令行批量工具、ASP.NET Core API 与 Web 测试台；再叠加纯 C# 的[文档照片增强](https://github.com/sdcb/SimdGcdrNet)与[文字识别](https://github.com/sdcb/SimdPaddleOCR)模块，把「解码 → 去阴影 / 透印 → 识别」串成一条链路。
 
-名字取自 *codec* + *loom*（织机）：把 HEIC、TIFF、JPEG 2000、JBIG2、QOI、Netpbm 等不同"线"织成统一的 Bgra32 像素布，再交给显示、服务或 CV 管线。
+名字取自 *codec* + *loom*（织机）：把 HEIC、TIFF、JPEG 2000、JBIG2、QOI、Netpbm 等不同"线"织成统一的 Bgra32 像素布，再交给显示、服务、CV 或文档智能管线。
 
 目标不是再做一个看图软件，而是验证这套库能否撑起三种产品形态：**本地隐私工具、图片处理服务、OCR / CV 输入层**。所有结论以仓库内代码和真机实跑为准。
 
@@ -23,6 +23,10 @@ dotnet run --project SimdCodecsViewer -c Release
 # 3) 容器（需要运行中的 Docker daemon）
 docker compose up --build -d
 curl http://127.0.0.1:5080/api/ready
+
+# 4) 文档智能：桌面点顶部「文档智能 ↓」开关，或走 API / CLI
+dotnet run --project SimdCodecsViewer -c Release -- --document <输入目录> <输出目录> both compare
+# API 侧默认 opt-in，启用需 Document__Enabled=true（见「生产化配置」）
 ```
 
 一条命令跑完所有回归：
@@ -41,8 +45,9 @@ dotnet SimdCodecs.Api/bin/Release/net10.0/SimdCodecs.Api.dll --apitest
 | --- | --- | --- |
 | `SimdCodecs.Core` | 编解码门面、`ICodecService` 抽象、上传闸门、批量引擎、预设 | 仅 Sdcb.SimdCodecs（精确锁 `[2.0.0]`） |
 | `SimdCodecs.Processing` | 缩放 / 滤镜 / 几何水印 / Gray8·BGR 布局 / Otsu·行投影 | 仅 BCL，Core 不引用它 |
-| `SimdCodecs.Api` | Minimal API、无依赖 Web 测试台、生产化运行时 | Core + Processing |
-| `SimdCodecsViewer` | Avalonia 三栏工作台 + CLI 批量 + 自检 / GUI 冒烟 | Core + Processing |
+| `SimdCodecs.Document` | 文档照片增强 + PP-OCRv6 识别、统一闸门 / 并发 / 管线 | 精确锁 GcdrNet `[1.0.0]`、PaddleOCR `[2.0.0]`、tiny 模型 `[1.0.0]`；Core / Processing 不改 |
+| `SimdCodecs.Api` | Minimal API、无依赖 Web 测试台、生产化运行时 | Core + Processing + Document |
+| `SimdCodecsViewer` | Avalonia 三栏工作台 + CLI 批量 + 文档智能 + 自检 / GUI 冒烟 | Core + Processing + Document |
 | `SimdCodecs.Tests` | xUnit 单元 / 集成测试（真实 Kestrel） | 全部项目 |
 
 `docs/` 保存规划方案、实施计划、待办清单与逐轮工作日志；`testdata/` 是真实 HEIC 与 3 页 TIFF 样本，不随发布产物分发。
@@ -64,8 +69,13 @@ dotnet SimdCodecs.Api/bin/Release/net10.0/SimdCodecs.Api.dll --apitest
 | POST | `/api/frames` | 多帧拆成 zip |
 | POST | `/api/process` | 任意尺寸缩放 + 亮度/对比度/灰度/反色 + 几何水印 |
 | POST | `/api/pixels` | 直出 Gray8 / Bgr24 / Rgb24 / Bgra32 连续裸像素 + Otsu·行投影分析 |
+| POST | `/api/enhance` | 文档照片去阴影 / 透印，返回同尺寸 PNG（alpha 保持） |
+| POST | `/api/ocr` | 文字识别 JSON：正文、行框、置信度、文本哈希，可选 `ctc=true` / `enhance=true` |
+| POST | `/api/document` | 增强 → 识别一步式，`compare=true` 附增强前后行数 / 字符数对比 |
 
-请求统一 `multipart/form-data`，文件字段 `file`（单张）或 `files`（批量）。响应头带 `X-Source-Format`、`X-Decoded-Width`、`X-Batch-Ok` 等统计字段，以及 `X-Request-Id`。
+请求统一 `multipart/form-data`，文件字段 `file`（单张）或 `files`（批量）。响应头带 `X-Source-Format`、`X-Decoded-Width`、`X-Batch-Ok` 等统计字段，以及 `X-Request-Id`；文档端点另有 `X-Document-Backend / -Enhance-Ms / -Ocr-Ms / -Lines / -Chars / -Text-Hash / -Degraded`，**只回统计、绝不把正文写进日志或指标**。
+
+文档端点默认关闭（501），设 `Document__Enabled=true` 开启；只收单帧、≤ 4 MP、长边 ≤ 2400px，超限返回 413 且**不静默缩放**。服务端固定 CPU 后端、tiny 模型；容器镜像里同样固定 CPU。
 
 一键预设：`heic-jpeg`、`heic-png`、`scan-split`（多页扫描件按 `-pNNN` 拆页 + CSV 清单）、`web-optimize`。
 
@@ -88,6 +98,12 @@ curl -F "file=@a.png" -F "layout=gray8" \
 | 开启限流 | `ApiRuntime__RateLimit__Enabled=true` | `--ApiRuntime:RateLimit:Enabled=true` | `false` |
 | 窗口配额 / 秒数 | `...__PermitLimit=60` / `...__WindowSeconds=60` | 同上 | `60` / `60` |
 | 结构化日志 | `ApiRuntime__StructuredLog=false` | 同上 | `true` |
+| 启用文档智能 | `Document__Enabled=true` | `--Document:Enabled=true` | `false`（opt-in） |
+| 后端 / 模型 | `Document__Backend=cpu` / `Document__Model=tiny` | 同上 | `cpu` / `tiny` |
+| 像素 / 长边闸门 | `Document__MaxPixels` / `Document__MaxEdge` | 同上 | `4000000` / `2400` |
+| 超时 / 并发 | `Document__TimeoutSeconds` / `Document__MaxConcurrency` | 同上 | `60` / `1` |
+
+**隐私默认值**：OCR 输出即合同、证件、试卷正文。生产环境开启文档模块时**必须同时开启 `ApiRuntime__Auth`**；未开鉴权时启动会输出显著告警（可用 `Document__WarnWhenUnauthenticated=false` 关闭）。日志与指标只记行数、字符数、耗时和文本哈希。
 
 - 鉴权保护所有 `/api/*` 业务端点（`/api/health`、`/api/ready`、静态测试台除外）；支持 `X-Api-Key` 与 `Authorization: Bearer`。测试台有 API Key 输入框，Key 只存浏览器 `localStorage`。
 - 限流是**按客户端 IP 的固定窗口**，超限返回 429 + `Retry-After`；使用框架内置 RateLimiter，无额外 NuGet 依赖。
@@ -99,12 +115,13 @@ curl -F "file=@a.png" -F "layout=gray8" \
 
 | 验证 | 结果 |
 | --- | --- |
-| 解决方案 Release 编译（5 项目） | 0 警告 / 0 错误 |
-| `dotnet test`（xUnit，真实 Kestrel） | **74 / 74** |
-| 覆盖率（coverlet Cobertura） | line **71.15%** / branch **58.13%** |
-| `--selftest` / `--smoke` / `--apitest` | **58 / 6 / 41** 全绿 |
-| 发布产物 | 框架依赖单文件 exe（12 MB）、API publish、23 MB NativeAOT 原生 exe 均复验通过 |
-| GitHub Actions 远端首跑 | **run #1 `43131782994` 整体 success**：Ubuntu/Windows 双矩阵回归 + NativeAOT + GHCR 镜像 4 个 job 全绿，`release` 因无 `v*` tag 按预期跳过，详见 `docs/04-工作日志.md` 第十二轮 |
+| 解决方案 Release 编译（6 项目） | 0 警告 / 0 错误 |
+| `dotnet test`（xUnit，真实 Kestrel） | **97 / 97** |
+| 覆盖率（coverlet Cobertura） | line **71.15%** / branch **58.13%**（文档模块另计，待 CI 首跑刷新） |
+| `--selftest` / `--smoke` / `--apitest` | **64 / 7 / 46** 全绿（含文档智能：增强 / OCR / 闸门 / 确定性 / 413·422·503 语义） |
+| 发布产物 | 框架依赖单文件 exe、API publish（含 `THIRD-PARTY-NOTICES.txt` 与 `LICENSES/Apache-2.0.txt`）、NativeAOT 原生 exe 均复验通过 |
+| 文档智能 NativeAOT | 含增强 + OCR 的原生 exe（55.3 MB 单文件）`IL2026`/`IL3050` = **0**，自检 64/64 通过 |
+| GitHub Actions 远端首跑 | run #1 `43131782994` 整体 success（文档智能上线前基线）；本轮回归已在本地按 workflow 步骤复现 |
 | Docker 镜像 | CI 已用同一份 `Dockerfile` 构建并推送 `ghcr.io/iamartinlong/codecloom:latest` / `:main` / `:sha-35bee0a`（Public）；本机 `docker build` / `compose up` 仍待 daemon 启动 |
 
 ## 推送到 GitHub 与 CI/CD
@@ -128,8 +145,8 @@ git push -u origin main
 
 ### CI（每次 push / PR）
 
-- `test`：Ubuntu + Windows 双矩阵 —— 还原、Release 编译、xUnit 74 项 + 覆盖率、`--selftest`、`--smoke`（Linux 走 Xvfb）、`--apitest`、真实 3 页 TIFF 批量、发布产物可运行校验。
-- `aot`：Windows runner 发布 NativeAOT 原生 exe 并跑自检与批量。
+- `test`：Ubuntu + Windows 双矩阵 —— 还原、Release 编译、xUnit 97 项 + 覆盖率、`--selftest`、`--smoke`（Linux 走 Xvfb）、`--apitest`（含文档端点 CPU 真实推理）、真实 3 页 TIFF 批量、文档智能 CLI（真实 HEIC 增强 + OCR + 对比）、发布产物可运行与**合规声明存在性**校验。
+- `aot`：Windows runner 发布组合 NativeAOT 原生 exe，断言 `IL2026/IL3050 = 0`、自检里真的跑过「增强→OCR」、exe 体积 ≥ 35 MB（证明嵌入模型未被裁剪），再跑批量。
 
 ### CD（自动，需回归全绿）
 
@@ -157,8 +174,9 @@ MSIX 用本地自签证书签名，**私钥不入库、CI 不产出 MSIX**；公
 - **HEVC 专利**：MIT 授权不含专利许可，HEIC 商用前需法务评估。
 - .NET 10 是硬门槛；`Stream` 会整读进内存，单数组 2 GB 上限；服务端已用 `ImageGuard` 挡住 32 MB / 80 MP / 帧数上限的图片炸弹。
 - JBIG2 / JPEG 2000 的真实样本链路未跑（下载失败，未伪造结果）；水印是几何图案而非文字字形（避免引入字体引擎破坏零原生依赖）。
-- 上游库年轻且单人维护：通过精确锁版本 `[2.0.0]` + `ICodecService` 抽象层缓解。
+- 上游库年轻且单人维护：通过精确锁版本（`SimdCodecs [2.0.0]`、`GcdrNet [1.0.0]`、`PaddleOCR [2.0.0]`）+ `ICodecService` / `IDocumentEnhancer` / `IOcrService` 抽象层缓解。
+- **文档智能**：模型是嵌入资源，所有产物约 +31 MB；CPU 推理不可被取消（超时只让调用方提前返回）；CTC 逐字符框是估算值；tiny 模型中文精度有限，不做「100% 识别准确」承诺；medium 模型不进默认产物。
 
-详细决策、阶段验收与每轮实跑证据见 [docs/README.md](docs/README.md)；**接手开发 / 运维 / 发版请先读 [docs/05-工作交接.md](docs/05-工作交接.md)**。候选功能「文档增强 + 文字识别」的可行性评估、串联实测与组合 NativeAOT 验证见 [docs/06-模块集成评估-SimdGcdrNet.md](docs/06-模块集成评估-SimdGcdrNet.md) 与 [docs/07-模块集成评估-SimdPaddleOCR.md](docs/07-模块集成评估-SimdPaddleOCR.md)（**均尚未集成进产品，建议合并为一个模块**）。
+详细决策、阶段验收与每轮实跑证据见 [docs/README.md](docs/README.md)；**接手开发 / 运维 / 发版请先读 [docs/05-工作交接.md](docs/05-工作交接.md)**。「文档增强 + 文字识别」的事实核对、串联实测与评估见 [docs/06-模块集成评估-SimdGcdrNet.md](docs/06-模块集成评估-SimdGcdrNet.md) 与 [docs/07-模块集成评估-SimdPaddleOCR.md](docs/07-模块集成评估-SimdPaddleOCR.md)；**两者已按推荐合并实施为 `SimdCodecs.Document` 模块**，落地记录见 `docs/04-工作日志.md` 第十六轮。
 
-源码采用 [MIT 许可](LICENSE)；已引入的依赖 `Sdcb.SimdCodecs` 与 Avalonia 同为 MIT。HEVC / HEIF 的专利授权不在 MIT 范围内，商用前另行评估。若后续启用候选的文档智能模块：SimdGcdrNet 引擎为 Apache-2.0、模型 MIT（GCDRNet 权重），SimdPaddleOCR 核心与模型包均为 Apache-2.0（PP-OCRv6 权重来自 PaddleOCR）；OCR 的 NuGet 包不带 NOTICE 文件，需按 `docs/06` 第 5.3 节与 `docs/07` 第 6.2 节补齐第三方声明、归属与商标说明后再分发。
+源码采用 [MIT 许可](LICENSE)；`Sdcb.SimdCodecs`、`Sdcb.SimdGcdrNet.Models`（GCDRNet 权重）与 Avalonia 同为 MIT；`Sdcb.SimdGcdrNet`、`Sdcb.SimdPaddleOCR` 及其模型包为 **Apache-2.0**（PP-OCRv6 权重归属 PaddlePaddle Authors）。完整归属、论文引用、商标声明与 Apache-2.0 全文分别见 [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt) 与 [LICENSES/Apache-2.0.txt](LICENSES/Apache-2.0.txt)，三者随每个二进制产物分发并由 CI 校验。HEVC / HEIF 的专利授权不在 MIT 范围内，商用前另行评估。

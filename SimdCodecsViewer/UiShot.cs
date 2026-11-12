@@ -11,7 +11,7 @@ namespace SimdCodecsViewer;
 /// </summary>
 public static class UiShot
 {
-    public static int Run(string path, int width, int height)
+    public static int Run(string path, int width, int height, bool showDocumentPanel = false)
     {
         AppBuilder.Configure<App>().UsePlatformDetect().SetupWithoutStarting();
 
@@ -31,6 +31,7 @@ public static class UiShot
                 t.GetAwaiter().GetResult();
             }
 
+            if (showDocumentPanel) window.FocusDocumentPanel();
             Pump(TimeSpan.FromSeconds(2), () => false);
 
             using var rtb = new RenderTargetBitmap(

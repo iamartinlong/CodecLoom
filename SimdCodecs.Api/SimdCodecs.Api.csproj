@@ -12,8 +12,20 @@
     <ProjectReference Include="..\SimdCodecs.Core\SimdCodecs.Core.csproj" />
     <!-- 可选处理层：纯托管、零原生依赖，Core 不引用它 -->
     <ProjectReference Include="..\SimdCodecs.Processing\SimdCodecs.Processing.csproj" />
+    <!-- 文档智能（增强 + OCR）：默认 opt-in，见 appsettings.json 的 Document 节 -->
+    <ProjectReference Include="..\SimdCodecs.Document\SimdCodecs.Document.csproj" />
     <!-- 测试台随输出目录走：dotnet run / 直接执行 dll / publish 目录都能打开 -->
     <Content Update="wwwroot\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- 第三方许可声明随每个二进制产物分发（Apache-2.0 引擎 / MIT 模型权重 / PaddleOCR 归属）。
+       Docker build 需同时 COPY 这三个根级文件，见 Dockerfile。 -->
+  <ItemGroup>
+    <Content Include="..\LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\THIRD-PARTY-NOTICES.txt" Link="THIRD-PARTY-NOTICES.txt"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\LICENSES\Apache-2.0.txt" Link="LICENSES\Apache-2.0.txt"
+             CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

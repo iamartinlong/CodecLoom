@@ -1,0 +1,115 @@
+CodecLoom — Third-party notices
+================================
+
+CodecLoom itself is distributed under the MIT License (see LICENSE).
+This file lists third-party material redistributed with the binary deliverables
+(portable ZIP, MSIX, single-file / NativeAOT executables, API publish folder,
+GHCR image and GitHub Release archives). Apache License 2.0 full text is
+provided in LICENSES/Apache-2.0.txt. Keep this file together with the binaries.
+
+--------------------------------------------------------------------------------
+1. Sdcb.SimdGcdrNet 1.0.0 — document image enhancement engine
+   https://github.com/sdcb/SimdGcdrNet
+--------------------------------------------------------------------------------
+License: Apache License, Version 2.0 (full text: LICENSES/Apache-2.0.txt).
+Copyright (c) sdcb and contributors.
+Package contents: managed assembly only; no native binaries.
+The NuGet package ships its own THIRD-PARTY-NOTICES.txt; the essential notices
+are reproduced below.
+
+--------------------------------------------------------------------------------
+2. Sdcb.SimdGcdrNet.Models 1.0.0 — GCDRNet model weights (MIT)
+   https://github.com/sdcb/SimdGcdrNet
+   https://github.com/ZZZHANG-jx/GCDRNet
+--------------------------------------------------------------------------------
+The GC-Net / DR-Net architecture implemented by Sdcb.SimdGcdrNet and the ONNX
+weights embedded in Sdcb.SimdGcdrNet.Models (gcdrnet_gcnet_sim.onnx,
+gcdrnet_drnet_sim.onnx) come from GCDRNet and are licensed under the MIT
+License:
+
+  MIT License
+  Copyright (c) 2024 Jiaxin Zhang
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+
+Required citation (from the upstream model notice):
+
+  Jiaxin Zhang, Lingyu Liang, Kai Ding, Fengjun Guo, Lianwen Jin.
+  "Appearance Enhancement for Camera-captured Document Images in the Wild".
+  IEEE Transactions on Artificial Intelligence, 2023.
+
+--------------------------------------------------------------------------------
+3. Sdcb.SimdPaddleOCR 2.0.0 — PP-OCRv6 inference engine (Apache-2.0)
+   https://github.com/sdcb/SimdPaddleOCR
+--------------------------------------------------------------------------------
+License: Apache License, Version 2.0 (full text: LICENSES/Apache-2.0.txt).
+Copyright (c) sdcb and contributors.
+Package contents: managed assemblies only; no ONNX Runtime / Paddle Inference /
+OpenCV / native binaries. GPU backends P/Invoke the operating system's Vulkan
+or Metal at runtime; CodecLoom fixes the service and CI to the CPU backend.
+
+--------------------------------------------------------------------------------
+4. Sdcb.SimdPaddleOCR.Models.ChineseV6Tiny 1.0.0 and transitive model packages
+   (Sdcb.SimdPaddleOCR.ModelProvider 1.0.0,
+    Sdcb.SimdPaddleOCR.Models.TextLineOrientation 1.0.0)
+   https://github.com/PaddlePaddle/PaddleOCR
+--------------------------------------------------------------------------------
+License: Apache License, Version 2.0 (full text: LICENSES/Apache-2.0.txt).
+The ONNX model files and dictionaries embedded in these packages are derived
+from the PaddleOCR / PP-OCR model distribution, whose upstream metadata
+identifies the assets as Apache-2.0.
+
+  Upstream attribution: Copyright (c) 2016 PaddlePaddle Authors.
+  All Rights Reserved.
+
+Sources:
+  https://github.com/PaddlePaddle/PaddleOCR
+  https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_det_onnx
+  https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_rec_onnx
+  https://huggingface.co/PaddlePaddle/PP-LCNet_x0_25_textline_ori_onnx
+
+The model files remain subject to the upstream model terms. PaddleOCR and
+PP-OCR are trademarks of their respective owners; CodecLoom is not endorsed
+by or affiliated with them.
+
+Note: the NuGet packages for Sdcb.SimdPaddleOCR do NOT contain a NOTICE file.
+The notices above are taken from the upstream repository's
+THIRD-PARTY-NOTICES.md and must be redistributed with every binary artifact.
+
+--------------------------------------------------------------------------------
+5. Other runtime dependencies (kept for completeness)
+--------------------------------------------------------------------------------
+Sdcb.SimdCodecs 2.0.0 / Sdcb.SimdCodecs.Heif 2.0.0 — MIT (sdcb).
+Avalonia 11.3.23 — MIT (AvaloniaUI).
+HEVC / HEIF patent licensing is outside the scope of these MIT grants;
+evaluate separately before commercial redistribution.
+
+CodecLoom does NOT redistribute ImageSharp (Six Labors Split License),
+SkiaSharp, OpenCvSharp or any ONNX Runtime native library.
+
+--------------------------------------------------------------------------------
+6. Scope notes
+--------------------------------------------------------------------------------
+* Only the tiny OCR model is bundled. small / medium model packages are not
+  referenced and are not part of any deliverable.
+* No upstream source code was modified. All packages are referenced unmodified
+  from NuGet at exact pinned versions.
+* The document AI module is opt-in (Document:Enabled=false by default); the
+  model assemblies are still part of the binaries and therefore these notices
+  apply to every artifact regardless of the runtime switch.

@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    文档智能模块：手机拍文档增强（SimdGcdrNet）+ 文字识别（SimdPaddleOCR）。
+    刻意独立于 Core / Processing：
+      · Core 只做「文件字节 <-> 像素」，不因推理模型变重；
+      · Processing 保持「只依赖 BCL、零第三方包」的契约；
+      · 本模块是唯一引用这两组 NuGet 包的地方，上游类型被接口挡在内部。
+    全部包精确锁版本（方括号区间）：上游 GitHub main 已做 2.0 引擎拆分，
+    自动解析到新版本会破坏 API，升级必须重跑全套回归，见 docs/06、docs/07。
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsAotCompatible>true</IsAotCompatible>
+    <RootNamespace>SimdCodecs.Document</RootNamespace>
+    <AssemblyName>SimdCodecs.Document</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Sdcb.SimdGcdrNet" Version="[1.0.0]" />
+    <PackageReference Include="Sdcb.SimdGcdrNet.Models" Version="[1.0.0]" />
+    <PackageReference Include="Sdcb.SimdPaddleOCR" Version="[2.0.0]" />
+    <!-- 一期只发 tiny（约 +9 MB）；small +25 MB / medium +96 MB 均不进默认产物 -->
+    <PackageReference Include="Sdcb.SimdPaddleOCR.Models.ChineseV6Tiny" Version="[1.0.0]" />
+  </ItemGroup>
+
+</Project>

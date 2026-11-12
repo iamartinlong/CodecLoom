@@ -18,6 +18,17 @@
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.23" />
     <ProjectReference Include="..\SimdCodecs.Core\SimdCodecs.Core.csproj" />
     <ProjectReference Include="..\SimdCodecs.Processing\SimdCodecs.Processing.csproj" />
+    <!-- 文档智能：桌面 opt-in，模型为嵌入资源，随单文件 / AOT 产物一起分发 -->
+    <ProjectReference Include="..\SimdCodecs.Document\SimdCodecs.Document.csproj" />
+  </ItemGroup>
+
+  <!-- 单文件 / 自包含 / MSIX / AOT 产物都要带第三方许可声明 -->
+  <ItemGroup>
+    <Content Include="..\LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\THIRD-PARTY-NOTICES.txt" Link="THIRD-PARTY-NOTICES.txt"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\LICENSES\Apache-2.0.txt" Link="LICENSES\Apache-2.0.txt"
+             CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

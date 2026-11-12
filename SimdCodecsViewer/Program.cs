@@ -14,6 +14,13 @@ internal static class Program
             return;
         }
 
+        // 无 GUI 的文档智能批处理：dotnet run -- --document <输入> <输出> [ocr|enhance|both] [compare]
+        if (args.Length > 0 && args[0] == "--document")
+        {
+            Environment.ExitCode = DocumentCli.Run(args.Skip(1).ToArray());
+            return;
+        }
+
         // 无 GUI 的端到端自检：dotnet run -- --selftest [输出目录]
         if (args.Length > 0 && args[0] == "--selftest")
         {
@@ -33,7 +40,8 @@ internal static class Program
             Environment.ExitCode = UiShot.Run(
                 args.Length > 1 ? args[1] : Path.Combine(AppContext.BaseDirectory, "screenshot.png"),
                 args.Length > 2 && int.TryParse(args[2], out int w) ? w : 1320,
-                args.Length > 3 && int.TryParse(args[3], out int h) ? h : 820);
+                args.Length > 3 && int.TryParse(args[3], out int h) ? h : 820,
+                args.Skip(1).Any(a => a == "--document-view"));
             return;
         }
 

@@ -25,7 +25,9 @@ public static class ApiSelfTest
     public static async Task<int> RunAsync(string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
-        WebApplication app = Program.Build(Array.Empty<string>());
+        // 显式打开文档模块：让同一套回归真实覆盖 enhance / ocr / document 三条链路，
+        // 默认部署仍是 opt-in（由 xUnit 的 DefaultApiFixture 断言 501）。
+        WebApplication app = Program.Build(new[] { "--Document:Enabled=true" });
         app.Urls.Add("http://127.0.0.1:0");
         try
         {
@@ -441,6 +443,72 @@ public static class ApiSelfTest
                   Header(bgrResp, "X-Stride") == (w * 3).ToString() &&
                   raw[0] == pixels[0] && raw[1] == pixels[1] && raw[2] == pixels[2],
                 $"Bgr24 返回 {raw.Length} B，前三字节 {raw[0]},{raw[1]},{raw[2]} 与源 BGRA 的 B/G/R 一致");
+        }
+
+        // ---------- 文档智能：增强 / OCR / 一步式管线 ----------
+        Console.WriteLine("10) 文档智能模块：/api/enhance · /api/ocr · /api/document（CPU，tiny）");
+        using (HttpResponseMessage health = await http.GetAsync("/api/health"))
+        {
+            using JsonDocument doc = JsonDocument.Parse(await health.Content.ReadAsStringAsync());
+            JsonElement d = doc.RootElement.GetProperty("document");
+            string endpoints = doc.RootElement.GetProperty("endpoints").ToString();
+            Check(d.GetProperty("enabled").GetBoolean() && d.GetProperty("model").GetString() == "tiny" &&
+                  endpoints.Contains("/api/enhance") && endpoints.Contains("/api/ocr") &&
+                  endpoints.Contains("/api/document"),
+                "GET /api/health 报告文档模块启用、tiny 模型与三个新端点");
+        }
+
+        using (HttpResponseMessage enhanced = await http.PostAsync("/api/enhance",
+                   Form(png, "gradient.png")))
+        {
+            byte[] output = await enhanced.Content.ReadAsByteArrayAsync();
+            LoadedImage? back = output.Length > 0 ? CodecService.Load(output, "enhanced.png") : null;
+            Check(enhanced.StatusCode == HttpStatusCode.OK && back is { Width: 320, Height: 240 } &&
+                  Header(enhanced, "X-Document-Backend") == "cpu" &&
+                  Header(enhanced, "X-Output-Width") == "320",
+                $"POST /api/enhance → {output.Length} B PNG 可回读 320×240，" +
+                $"增强 {Header(enhanced, "X-Document-Enhance-Ms")} ms");
+        }
+
+        using (HttpResponseMessage ocr = await http.PostAsync("/api/ocr",
+                   Form(png, "gradient.png", ("ctc", "true"))))
+        {
+            string body = await ocr.Content.ReadAsStringAsync();
+            using JsonDocument doc = JsonDocument.Parse(body);
+            JsonElement root = doc.RootElement;
+            Check(ocr.StatusCode == HttpStatusCode.OK && root.TryGetProperty("text", out _) &&
+                  root.TryGetProperty("lines", out JsonElement lines) &&
+                  lines.ValueKind == JsonValueKind.Array &&
+                  root.GetProperty("backend").GetString() == "cpu" &&
+                  Header(ocr, "X-Document-Text-Hash") is not "",
+                $"POST /api/ocr 返回结构化文本 / 行框 / 哈希（{root.GetProperty("lineCount").GetInt32()} 行，" +
+                $"{Header(ocr, "X-Document-Ocr-Ms")} ms）");
+        }
+
+        using (HttpResponseMessage pipeline = await http.PostAsync("/api/document",
+                   Form(png, "gradient.png", ("compare", "true"))))
+        {
+            string body = await pipeline.Content.ReadAsStringAsync();
+            using JsonDocument doc = JsonDocument.Parse(body);
+            JsonElement root = doc.RootElement;
+            Check(pipeline.StatusCode == HttpStatusCode.OK &&
+                  root.GetProperty("enhanced").GetBoolean() &&
+                  root.GetProperty("original").ValueKind == JsonValueKind.Object &&
+                  root.GetProperty("totalMs").GetDouble() > 0 &&
+                  Header(pipeline, "X-Document-Degraded") == "false",
+                $"POST /api/document 增强→识别 + 原图对比（{Header(pipeline, "X-Document-Total-Ms")} ms）");
+        }
+
+        // 2500×2500 合法 PNG 能过 Core 的 80 MP 闸门，但必须被 DocumentLimits 的长边 2400 拦下
+        const int big = 2500;
+        byte[] bigPng = CodecService.EncodeBytes(new byte[big * big * 4], big, big, ImageFormat.Png);
+        using (HttpResponseMessage tooBig = await http.PostAsync("/api/document",
+                   Form(bigPng, "big.png")))
+        {
+            string detail = await DetailAsync(tooBig);
+            Check(tooBig.StatusCode == HttpStatusCode.RequestEntityTooLarge &&
+                  detail.Contains("长边"),
+                $"POST /api/document 2500×2500 → 413 且不静默缩放（{detail[..Math.Min(60, detail.Length)]}…）");
         }
     }
 

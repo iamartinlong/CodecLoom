@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SimdCodecs.Api;
 using SimdCodecs.Core;
+using SimdCodecs.Document;
 
 namespace SimdCodecs.Api;
 
@@ -21,9 +22,14 @@ public static class Program
         return 0;
     }
 
+    /// <summary>
+    /// 命令行配置用 ":" 分层，环境变量才用 "__"。这里兼容大家习惯的
+    /// --ApiRuntime__Auth__Enabled=true / --Document__Enabled=true 写法。
+    /// </summary>
     private static string NormalizeRuntimeArg(string arg)
     {
-        if (!arg.StartsWith("--ApiRuntime__", StringComparison.Ordinal)) return arg;
+        if (!arg.StartsWith("--", StringComparison.Ordinal) || !arg.Contains("__", StringComparison.Ordinal))
+            return arg;
         int eq = arg.IndexOf('=');
         string key = eq < 0 ? arg : arg[..eq];
         string suffix = eq < 0 ? "" : arg[eq..];
@@ -50,6 +56,15 @@ public static class Program
         // 编解码实现由容器提供：将来要回退到 Magick.NET / ImageSharp，
         // 只需改这里的注册（或先调 CodecServices.Use(...)），端点层无需改动。
         builder.Services.AddSingleton<ICodecService>(_ => CodecServices.Current);
+
+        // 文档智能模块：默认 opt-in。模型是嵌入资源，未启用时只构造 Lazy 壳，不加载权重。
+        DocumentOptions document = builder.Configuration
+            .GetSection(DocumentOptions.Section).Get<DocumentOptions>() ?? new DocumentOptions();
+        document.Normalize();
+        builder.Services.AddSingleton(document);
+        builder.Services.AddSingleton(
+            sp => new DocumentRuntime(sp.GetRequiredService<DocumentOptions>()));
+
         builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
             .AllowAnyOrigin()
             .AllowAnyMethod()
@@ -63,6 +78,7 @@ public static class Program
         app.UseStaticFiles();
         ApiRuntime.Map(app);
         ImageEndpoints.Map(app);
+        DocumentEndpoints.Map(app);
         return app;
     }
 }

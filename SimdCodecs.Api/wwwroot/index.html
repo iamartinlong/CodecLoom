@@ -155,6 +155,22 @@
     </div>
 
     <div class="card">
+      <h2>4 · 文档智能（增强 / OCR）</h2>
+      <p class="note" id="docState" style="margin:0 0 12px">正在检测服务端是否启用文档模块…</p>
+      <div class="row" style="flex-wrap:wrap;gap:14px">
+        <input type="checkbox" id="docCtc"><label for="docCtc" style="margin:0">逐字符框（CTC 估算）</label>
+        <input type="checkbox" id="docCompare"><label for="docCompare" style="margin:0">增强前后对比</label>
+      </div>
+      <div class="btns">
+        <button class="primary" id="docEnhance" disabled>增强并下载</button>
+        <button id="docOcr" disabled>识别文字</button>
+        <button id="docPipeline" disabled>增强 + 识别</button>
+      </div>
+      <pre id="docOut" style="margin-top:14px;max-height:220px">识别结果会显示在这里（可直接选中复制）。</pre>
+      <p class="note">纯 CPU · tiny 模型 · 单帧 ≤ 4 MP。OCR 结果即文档正文：数据只在本机浏览器与本机服务之间传输，日志与指标不记录正文。模块默认关闭，需设 <code>Document__Enabled=true</code>；未启用时返回 501。</p>
+    </div>
+
+    <div class="card">
       <h2>请求日志</h2>
       <div class="log" id="log">等待操作。</div>
     </div>
@@ -196,6 +212,11 @@ curl -F "file=@a.png" -F "resizeW=800" \
 
 curl -F "file=@a.png" -F "layout=gray8" \
      http://localhost:5080/api/pixels -o a.gray8.raw
+
+# 文档智能（需 Document__Enabled=true）
+curl -F "file=@scan.jpg" http://localhost:5080/api/enhance -o scan-enhanced.png
+curl -F "file=@scan.jpg" -F "ctc=true" http://localhost:5080/api/ocr
+curl -F "file=@scan.jpg" -F "compare=true" http://localhost:5080/api/document
 
 # 运维探针与指标（可选鉴权时加 -H "X-Api-Key: $KEY"）
 curl http://localhost:5080/api/ready
@@ -289,7 +310,10 @@ async function call(path, fd, want = 'json') {
     'X-Frame-Count','X-Batch-Ok','X-Batch-Failed','X-Batch-Skipped','X-Preset-Id',
     'X-Thumbnail-Width','X-Thumbnail-Height','X-Process-Steps','X-Pixel-Layout',
     'X-Output-Width','X-Output-Height','X-Width','X-Height','X-Stride','X-Bytes-Per-Pixel',
-    'X-Cv-Otsu-Threshold','X-Cv-Ink-Ratio','X-Cv-Text-Rows']) {
+    'X-Cv-Otsu-Threshold','X-Cv-Ink-Ratio','X-Cv-Text-Rows',
+    'X-Document-Model','X-Document-Backend','X-Document-Degraded',
+    'X-Document-Enhance-Ms','X-Document-Ocr-Ms','X-Document-Total-Ms',
+    'X-Document-Lines','X-Document-Chars','X-Document-Text-Hash']) {
     if (resp.headers.has(k)) stat[k] = resp.headers.get(k);
   }
   if (Object.keys(stat).length) show(stat);
@@ -322,7 +346,8 @@ function renderFiles() {
     box.appendChild(row);
   });
   const has = files.length > 0;
-  ['convert','inspect','thumb','batch','split','process','pixels'].forEach(id => $(id).disabled = !has);
+  ['convert','inspect','thumb','batch','split','process','pixels',
+   'docEnhance','docOcr','docPipeline'].forEach(id => $(id).disabled = !has);
   $('batch').disabled = files.length < 2;
   $('split').disabled = files.length !== 1;
   $('process').disabled = files.length !== 1;
@@ -408,6 +433,42 @@ $('pixels').onclick = async () => {
   } catch (_) {}
 };
 
+// ---- 文档智能：增强图下载 / OCR JSON / 增强→识别管线 ----
+function docFields(extra = {}) {
+  const fd = oneFile(fields());
+  fd.delete('preset');
+  fd.set('ctc', $('docCtc').checked ? 'true' : 'false');
+  fd.set('compare', $('docCompare').checked ? 'true' : 'false');
+  for (const [k, v] of Object.entries(extra)) fd.set(k, v);
+  return fd;
+}
+async function docJson(path, extra = {}) {
+  const { blob } = await call(path, docFields(extra));
+  const d = JSON.parse(await blob.text());
+  $('docOut').textContent = (d.text || '').trim() || '（未检测到文本行）';
+  show({
+    backend: d.backend, model: d.model, enhanced: d.enhanced, degraded: d.degraded,
+    lines: d.lineCount, chars: d.charCount, detected: d.detectedCount,
+    enhanceMs: d.enhanceMs, ocrMs: d.ocrMs, totalMs: d.totalMs,
+    original: d.original || null
+  });
+  log(`文档结果：${d.lineCount} 行 / ${d.charCount} 字符 · ${d.totalMs} ms`, 's');
+  return d;
+}
+$('docEnhance').onclick = async () => {
+  try {
+    const { blob } = await call('/api/enhance', docFields());
+    download(blob, outName('-enhanced.png'));
+    $('docOut').textContent = '增强图已下载（尺寸与 alpha 保持不变）。';
+  } catch (_) {}
+};
+$('docOcr').onclick = async () => {
+  try { await docJson('/api/ocr'); } catch (_) {}
+};
+$('docPipeline').onclick = async () => {
+  try { await docJson('/api/document'); } catch (_) {}
+};
+
 (async function init() {
   try {
     const h = await (await fetch('/api/health', { headers: apiHeaders() })).json();
@@ -418,7 +479,12 @@ $('pixels').onclick = async () => {
       <span class="badge ok">处理层就绪</span>
       <span class="badge">${(h.presets || []).length} 个预设</span>
       <span class="badge">单文件上限 ${(h.limits.maxFileBytes/1048576).toFixed(0)} MB</span>
-      <span class="badge">像素上限 ${(h.limits.maxPixels/1000000).toFixed(0)} MP</span>`;
+      <span class="badge">像素上限 ${(h.limits.maxPixels/1000000).toFixed(0)} MP</span>
+      <span class="badge ${h.document && h.document.enabled ? 'ok' : ''}">文档智能 ${h.document && h.document.enabled ? '已启用' : '未启用'}</span>`;
+    const d = h.document || {};
+    $('docState').textContent = d.enabled
+      ? `已启用 · ${d.model} 模型 · ${d.backend} 后端 · 单帧 ≤ ${(d.maxPixels/1000000).toFixed(0)} MP · 并发 ${d.maxConcurrency}`
+      : '服务端未启用文档模块（Document:Enabled=false）。启用后本卡片可用，未启用时请求返回 501。';
     log('服务已连接', 's');
   } catch (_) {
     $('badges').innerHTML = '<span class="badge">服务未连接：请先启动 SimdCodecs.Api</span>';

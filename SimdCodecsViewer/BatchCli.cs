@@ -9,7 +9,8 @@ namespace SimdCodecsViewer;
 /// </summary>
 public static class BatchCli
 {
-    private static readonly string[] Extensions =
+    // 文档智能 CLI 复用同一份扩展名白名单，避免两处漂移。
+    internal static readonly string[] Extensions =
     {
         ".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".ico", ".heic", ".heif",
         ".tif", ".tiff", ".jp2", ".j2k", ".jbig2", ".qoi", ".ppm", ".pgm", ".pbm", ".apng"

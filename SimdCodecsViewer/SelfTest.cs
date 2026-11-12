@@ -1,6 +1,7 @@
 using System.Buffers;
 using Sdcb.SimdCodecs;
 using Sdcb.SimdCodecs.Abstractions;
+using SimdCodecs.Document;
 using SimdCodecs.Processing;
 
 namespace SimdCodecsViewer;
@@ -357,7 +358,8 @@ public static class SelfTest
                     OrientOnLoad = false, FormatIndex = 1, Quality = 85.5,
                     PresetIndex = 3, AllFrames = true, ResizeW = 1920, ResizeH = 0,
                     Watermark = "测试水印 © 2026", Brightness = -20, Contrast = 1.75,
-                    Grayscale = true, Invert = false, LayoutIndex = 2
+                    Grayscale = true, Invert = false, LayoutIndex = 2,
+                    DocumentEnabled = true, DocumentCtc = true, DocumentCompare = false
                 };
                 SettingsService.Save(written);
                 AppSettings read = SettingsService.Load();
@@ -377,8 +379,11 @@ public static class SelfTest
                     && Math.Abs(read.Contrast - written.Contrast) < 0.001
                     && read.Grayscale == written.Grayscale
                     && read.Invert == written.Invert
-                    && read.LayoutIndex == written.LayoutIndex;
-                Check(roundTrip, $"设置 JSON round-trip 18 项字段全等（{Path.GetFileName(tempSettings)}）");
+                    && read.LayoutIndex == written.LayoutIndex
+                    && read.DocumentEnabled == written.DocumentEnabled
+                    && read.DocumentCtc == written.DocumentCtc
+                    && read.DocumentCompare == written.DocumentCompare;
+                Check(roundTrip, $"设置 JSON round-trip 21 项字段全等（{Path.GetFileName(tempSettings)}）");
 
                 File.WriteAllText(tempSettings, "{ this is not json ");
                 Check(SettingsService.Load() is { ScaleIndex: 0, Language: "zh" },
@@ -394,6 +399,52 @@ public static class SelfTest
                   && L10n.Tr("未在词典里的原文") == "未在词典里的原文",
                 "en 语言查表生效且未知 key 回退原文");
             L10n.Language = "zh";
+
+            // ---- 文档智能：小图 CPU 冒烟。只断言结构不变量，不做识别精度金标准 ----
+            Console.WriteLine("12) 文档智能模块：增强 / OCR / 闸门 / 确定性");
+            using (var runtime = new DocumentRuntime(DocumentOptions.ForLocal()))
+            {
+                const int docW = 320, docH = 240;
+                byte[] docPixels = MakeDocumentSample(docW, docH);
+                var frame = new DocumentFrame(docPixels, docW, docH, docW * 4, 1);
+                DocumentResult r = runtime.RunAsync(frame,
+                        new DocumentRequest(Enhance: true, Ocr: true, Compare: true, Ctc: true))
+                    .GetAwaiter().GetResult();
+
+                Check(r.EnhancedPixels is { Length: docW * docH * 4 } &&
+                      r.Enhance is not null && r.Ocr is not null && r.OriginalOcr is not null,
+                    $"增强→OCR 一步式 + 原图对比可运行（{r.TotalMs:F0} ms）");
+
+                bool alphaKept = true, changed = false;
+                for (int i = 0; i < r.EnhancedPixels!.Length; i += 4)
+                {
+                    if (r.EnhancedPixels[i + 3] != 255) alphaKept = false;
+                    if (r.EnhancedPixels[i] != docPixels[i]) changed = true;
+                }
+                Check(alphaKept && changed && r.Enhance!.Backend == "cpu" && !r.Enhance.Degraded,
+                    "增强输出 Bgra32 长度不变、alpha 逐字节保持、像素确有改变、固定 CPU 后端");
+
+                OcrOutcome a = runtime.RunAsync(frame,
+                        new DocumentRequest(Enhance: false, Ocr: true))
+                    .GetAwaiter().GetResult().Ocr!;
+                OcrOutcome b = runtime.RunAsync(frame,
+                        new DocumentRequest(Enhance: false, Ocr: true))
+                    .GetAwaiter().GetResult().Ocr!;
+                Check(a.PackedTextHash == b.PackedTextHash && a.LineCount == b.LineCount &&
+                      a.Lines.Length == a.LineCount && a.ElapsedMs >= 0,
+                    $"同一输入两次 OCR 文本哈希一致（{a.PackedTextHash:x16}），结构化行数组自洽");
+
+                bool ctcShaped = r.Ocr!.Lines.All(l => l.Box.Length == 8 &&
+                    (l.Characters is null || l.Characters.All(c => c.Box.Length == 8)));
+                Check(ctcShaped, "CTC 开关生效：检测框与逐字符框均为 8 坐标四边形");
+
+                Check(runtime.Limits.Validate(docW, docH, 1).Accepted &&
+                      runtime.Limits.Validate(3000, 2000, 1) is { Accepted: false, Status: 413 } &&
+                      runtime.Limits.Validate(docW, docH, 3) is { Accepted: false, Status: 422 },
+                    "DocumentLimits：小图放行 / 超大图 413 / 多帧 422，且不静默缩放");
+                Check(runtime.Requests == 3 && runtime.Failures == 0,
+                    $"Runtime 统计自洽（requests={runtime.Requests}, failures={runtime.Failures}）");
+            }
         }
         catch (Exception ex)
         {
@@ -404,6 +455,23 @@ public static class SelfTest
 
         Console.WriteLine(failures == 0 ? "== 自检全部通过 ==" : $"== 自检失败 {failures} 项 ==");
         return failures == 0 ? 0 : 1;
+    }
+
+    /// <summary>白纸 + 黑色横条 + 左上到右下的渐变阴影，模拟手机拍文档（Bgra32）。</summary>
+    internal static byte[] MakeDocumentSample(int w, int h)
+    {
+        byte[] px = new byte[w * h * 4];
+        for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++)
+        {
+            double shade = 1.0 - 0.5 * Math.Clamp((x / (double)w + y / (double)h) / 2.0, 0, 1);
+            bool ink = y % 34 < 4 && x > 20 && x < w - 20;
+            byte v = (byte)((ink ? 35 : 240) * shade);
+            int i = (y * w + x) * 4;
+            px[i] = px[i + 1] = px[i + 2] = v;
+            px[i + 3] = 255;
+        }
+        return px;
     }
 
     internal static byte[] MakeGradient(int w, int h)

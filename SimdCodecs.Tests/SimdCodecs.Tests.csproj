@@ -25,6 +25,7 @@
   <ItemGroup>
     <ProjectReference Include="..\SimdCodecs.Core\SimdCodecs.Core.csproj" />
     <ProjectReference Include="..\SimdCodecs.Processing\SimdCodecs.Processing.csproj" />
+    <ProjectReference Include="..\SimdCodecs.Document\SimdCodecs.Document.csproj" />
     <ProjectReference Include="..\SimdCodecs.Api\SimdCodecs.Api.csproj" />
   </ItemGroup>
 

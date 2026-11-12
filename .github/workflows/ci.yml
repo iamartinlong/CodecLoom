@@ -36,7 +36,7 @@ jobs:
       - name: 编译（Release，零警告）
         run: dotnet build SimdCodecsWorkbench.slnx -c Release --no-restore
 
-      - name: xUnit 74 项 + 覆盖率
+      - name: xUnit 97 项 + 覆盖率
         run: >
           dotnet test SimdCodecs.Tests/SimdCodecs.Tests.csproj -c Release
           --no-build --no-restore
@@ -60,7 +60,7 @@ jobs:
             libxcursor1 libice6 libsm6 libfontconfig1 libfreetype6
           xvfb-run -a dotnet SimdCodecsViewer/bin/Release/net10.0/SimdCodecsViewer.dll --smoke
 
-      - name: API 真实 Kestrel 集成（--apitest）
+      - name: API 真实 Kestrel 集成（--apitest，含文档端点 CPU 冒烟）
         run: dotnet SimdCodecs.Api/bin/Release/net10.0/SimdCodecs.Api.dll --apitest
 
       - name: 命令行批量（scan-split 预设，真实 3 页 TIFF）
@@ -71,6 +71,17 @@ jobs:
           test -f ci-out/multipage-pillow-p002.png
           test -f ci-out/multipage-pillow-p003.png
           test -f ci-out/_manifest.csv
+
+      - name: 文档智能 CLI（真实 HEIC · CPU tiny · 增强 + OCR + 对比）
+        shell: bash
+        run: |
+          mkdir -p ci-doc-in
+          cp testdata/example.heic ci-doc-in/
+          dotnet SimdCodecsViewer/bin/Release/net10.0/SimdCodecsViewer.dll --document ci-doc-in ci-doc-out both compare
+          test -f ci-doc-out/_document_manifest.csv
+          test -f ci-doc-out/example.txt
+          test -f ci-doc-out/example-enhanced.png
+          grep -q "OK" ci-doc-out/_document_manifest.csv
 
       - name: 发布 API 与单文件桌面程序
         shell: bash
@@ -86,6 +97,12 @@ jobs:
           test -f ci-publish/api/SimdCodecs.Api.dll
           test -f ci-publish/api/wwwroot/index.html
           test "$(du -m ci-publish/api/SimdCodecs.Api.dll | cut -f1)" -gt 0
+          # 合规声明必须随每个二进制产物分发（Apache-2.0 引擎 + MIT / PaddleOCR 模型权重）
+          test -f ci-publish/api/THIRD-PARTY-NOTICES.txt
+          test -f ci-publish/api/LICENSES/Apache-2.0.txt
+          test -f ci-publish/api/LICENSE
+          test -f ci-publish/viewer/THIRD-PARTY-NOTICES.txt
+          test -f ci-publish/viewer/LICENSES/Apache-2.0.txt
           dotnet ci-publish/api/SimdCodecs.Api.dll --apitest
           if [ "$RUNNER_OS" = "Windows" ]; then
             test -f ci-publish/viewer/SimdCodecsViewer.exe
@@ -120,12 +137,28 @@ jobs:
           arch: x64
       - name: 还原
         run: dotnet restore SimdCodecsViewer/SimdCodecsViewer.csproj
-      - name: 发布原生 exe
-        run: >
-          dotnet publish SimdCodecsViewer/SimdCodecsViewer.csproj -c Release
-          -r win-x64 -p:PublishAot=true -p:StripSymbols=true -o aot-ci
-      - name: 原生 exe 自检
-        run: .\aot-ci\SimdCodecsViewer.exe --selftest
+      - name: 发布原生 exe（组合模块，检查裁剪警告）
+        shell: pwsh
+        run: |
+          dotnet publish SimdCodecsViewer/SimdCodecsViewer.csproj -c Release `
+            -r win-x64 -p:PublishAot=true -p:StripSymbols=true -o aot-ci 2>&1 |
+            Tee-Object -FilePath aot-build.log
+          if ($LASTEXITCODE -ne 0) { throw "AOT publish failed with exit code $LASTEXITCODE" }
+          $il = Select-String -Path aot-build.log -Pattern "IL2026|IL3050"
+          if ($il) { $il; throw "AOT 裁剪警告不为零（增强 + OCR 嵌入模型未完整保留）" }
+          Write-Output "AOT 编译完成：IL2026 / IL3050 = 0"
+
+      - name: 组合 NativeAOT 自检（增强 + OCR 全链路）
+        shell: pwsh
+        run: |
+          $log = .\aot-ci\SimdCodecsViewer.exe --selftest 2>&1
+          $code = $LASTEXITCODE
+          $log | Select-String -Pattern "文档智能模块|自检全部通过"
+          if ($code -ne 0) { throw "AOT selftest failed with exit code $code" }
+          if (-not ($log -match "增强→OCR 一步式")) { throw "文档模型未随 AOT 产物分发" }
+          $sizeMb = (Get-Item .\aot-ci\SimdCodecsViewer.exe).Length / 1MB
+          Write-Output ("AOT exe: {0:N1} MB" -f $sizeMb)
+          if ($sizeMb -lt 35) { throw "嵌入模型疑似被裁剪" }
       - name: 原生 exe 命令行批量
         run: .\aot-ci\SimdCodecsViewer.exe --batch testdata aot-ci-out scan-split
 
@@ -190,11 +223,19 @@ jobs:
           dotnet publish SimdCodecsViewer/SimdCodecsViewer.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o dist/single
           dotnet publish SimdCodecsViewer/SimdCodecsViewer.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -o dist/portable
 
-      - name: 发布产物自检
+      - name: 发布产物自检（含合规声明与模型体积预算）
         shell: bash
         run: |
           dotnet dist/api/SimdCodecs.Api.dll --apitest
           ./dist/single/SimdCodecsViewer.exe --selftest
+          test -f dist/api/THIRD-PARTY-NOTICES.txt
+          test -f dist/api/LICENSES/Apache-2.0.txt
+          test -f dist/api/LICENSE
+          test -f dist/single/THIRD-PARTY-NOTICES.txt
+          test -f dist/portable/THIRD-PARTY-NOTICES.txt
+          test -f dist/portable/LICENSES/Apache-2.0.txt
+          # 模型是嵌入资源；单文件 exe 明显小于 30 MB 说明模型包没被带进产物
+          test "$(du -m dist/single/SimdCodecsViewer.exe | cut -f1)" -gt 30
 
       - name: 打包分发 zip
         shell: pwsh

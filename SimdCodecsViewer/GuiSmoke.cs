@@ -40,6 +40,8 @@ public static class GuiSmoke
             var window = new MainWindow();
             Check(window.Title?.Contains("工作台") == true,
                 $"MainWindow 控件树构建成功：{window.Title}");
+            Check(window.DocumentControlsReady,
+                "文档智能面板已挂载（opt-in 开关 / 结果框 / 三个动作按钮）");
 
             window.AddFiles(new[] { png });
             Check(window.Items.Count == 1 && window.Items[0].Entry.Decodable,
