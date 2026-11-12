@@ -99,6 +99,8 @@ public sealed class MainWindow : Window
         _settings = SettingsService.Load();
         L10n.Language = string.Equals(_settings.Language, "en", StringComparison.OrdinalIgnoreCase) ? "en" : "zh";
         Title = L10n.Tr("CodecLoom · 本地图片工作台");
+        Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(
+            new Uri("avares://SimdCodecsViewer/Assets/appicon-256.png")));
         Width = _settings.WindowWidth > 400 ? _settings.WindowWidth : 1320;
         Height = _settings.WindowHeight > 400 ? _settings.WindowHeight : 820;
         MinWidth = 1040;

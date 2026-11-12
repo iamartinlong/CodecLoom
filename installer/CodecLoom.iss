@@ -30,6 +30,7 @@ WizardStyle=modern
 UninstallDisplayName={#AppName} {#AppVersion}
 ; 无数字签名证书：不打 SignedUninstaller
 LicenseFile=..\LICENSE
+SetupIconFile=..\assets\appicon.ico
 
 [Languages]
 ; 简体中文翻译随仓库分发（Inno 官方不含；来源 kira-96/Inno-Setup-Chinese-Simplified-Translation，6.5.0+）

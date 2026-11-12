@@ -8,8 +8,14 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>SimdCodecsViewer</RootNamespace>
     <AssemblyName>SimdCodecsViewer</AssemblyName>
+    <ApplicationIcon>..\assets\appicon.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
+
+  <!-- 品牌资产：窗口图标（运行时任务栏 / 标题栏），物理文件在仓库根 assets/ -->
+  <ItemGroup>
+    <AvaloniaResource Include="..\assets\appicon-256.png" Link="Assets/appicon-256.png" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.3.23" />

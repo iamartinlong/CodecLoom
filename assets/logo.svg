@@ -1,0 +1,26 @@
+<!--
+  CodecLoom 品牌图形（矢量主文件）
+  语义：CodecLoom = 编解码器 × 织机 —— 3 经 3 纬 over-under 交织，
+  既是织机织纹，也是像素阵列；经线用应用主色 #4F8CFF，纬线 #7CB8FF。
+  位图变体（appicon.ico / logo-banner.png）由 tools/gen-logo.py 按同一几何生成。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- 底：圆角瓷砖，与 UI 窗口底色一致 -->
+  <rect x="2" y="2" width="252" height="252" rx="56" fill="#141518" stroke="#2C3038" stroke-width="3"/>
+
+  <!-- 纬线（浅蓝，默认在下） -->
+  <rect x="40" y="59"  width="176" height="26" rx="13" fill="#7CB8FF"/>
+  <rect x="40" y="115" width="176" height="26" rx="13" fill="#7CB8FF"/>
+  <rect x="40" y="171" width="176" height="26" rx="13" fill="#7CB8FF"/>
+
+  <!-- 经线（主色蓝，默认在上） -->
+  <rect x="59"  y="40" width="26" height="176" rx="13" fill="#4F8CFF"/>
+  <rect x="115" y="40" width="26" height="176" rx="13" fill="#4F8CFF"/>
+  <rect x="171" y="40" width="26" height="176" rx="13" fill="#4F8CFF"/>
+
+  <!-- over-under 修正：i+j 为奇数的交点纬线在上（共 4 处） -->
+  <rect x="57"  y="115" width="30" height="26" rx="7" fill="#7CB8FF"/>
+  <rect x="113" y="59"  width="30" height="26" rx="7" fill="#7CB8FF"/>
+  <rect x="113" y="171" width="30" height="26" rx="7" fill="#7CB8FF"/>
+  <rect x="169" y="115" width="30" height="26" rx="7" fill="#7CB8FF"/>
+</svg>

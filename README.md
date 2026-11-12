@@ -1,5 +1,9 @@
 # CodecLoom
 
+<p align="center">
+  <img src="assets/logo-banner.png" alt="CodecLoom logo" width="600">
+</p>
+
 > **纯托管图片 I/O + 文档智能工作台** · 仓库 [`iamartinlong/CodecLoom`](https://github.com/iamartinlong/CodecLoom) · 中文别称「解码织台」
 
 基于 [Sdcb.SimdCodecs 2.0](https://www.nuget.org/packages/Sdcb.SimdCodecs) 的**纯托管图片工作台**：一个零原生依赖的编解码核心，同时驱动 Avalonia 桌面客户端、命令行批量工具、ASP.NET Core API 与 Web 测试台；再叠加纯 C# 的[文档照片增强](https://github.com/sdcb/SimdGcdrNet)与[文字识别](https://github.com/sdcb/SimdPaddleOCR)模块，把「解码 → 去阴影 / 透印 → 识别」串成一条链路。
