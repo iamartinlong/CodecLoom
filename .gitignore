@@ -1,0 +1,54 @@
+# ---- 构建与发布产物 ----
+**/bin/
+**/obj/
+**/publish/
+**/publish-single/
+aot-probe/
+aot-ci/
+aot-ci-out/
+aot-batch-out/
+aot-selftest-out/
+ci-publish/
+ci-out/
+s65-out/
+dist/
+*-out/
+TestResults/
+# 105 MB 自包含发布目录，CI 里重新生成
+msix-src/
+
+# ---- 打包产物（体积大，走 GitHub Release 而非源码仓库）----
+*.msix
+*.appx
+*.msixbundle
+*.zip
+*.7z
+
+# ---- 签名密钥：绝对不要提交 ----
+# 自签代码签名证书含私钥，推到公开仓库等于泄露；仅本地保留。
+*.pfx
+*.p12
+*.snk
+*.key
+SimdCodecsDev.*
+
+# ---- 运行时与本地配置 ----
+*.user
+*.suo
+selftest-output/
+converted/
+.env
+.env.*
+appsettings.Development.json
+appsettings.Local.json
+
+# ---- 本地智能体工作区（会话记忆/私有笔记，不入库）----
+.workbuddy/
+
+# ---- 临时调试文件 ----
+# 仅用于生成图标/裁剪截图的临时项目
+logo-gen/
+crop-*.png
+ui-info-v*.png
+ui-shot-v*.png
+ui-align-*.png

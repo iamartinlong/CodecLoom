@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SimdCodecs 图片工作台 · API 测试台</title>
+<style>
+  :root{
+    --bg:#f5f7fb; --panel:#ffffff; --line:#e3e8f0; --text:#1d2537; --muted:#6b7590;
+    --brand:#4c5bd4; --brand-soft:#eef0ff; --ok:#138a5e; --ok-soft:#e7f7ef;
+    --err:#c0392b; --err-soft:#fdecea; --shadow:0 1px 3px rgba(20,30,60,.06),0 8px 28px rgba(20,30,60,.05);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{--bg:#141824; --panel:#1c2130; --line:#2c3446; --text:#e8ecf5; --muted:#98a2bb;
+      --brand:#8b97ff; --brand-soft:#262c4a; --ok:#5cd6a0; --ok-soft:#19352b;
+      --err:#ff8b7e; --err-soft:#3a2224; --shadow:0 1px 3px rgba(0,0,0,.3),0 8px 28px rgba(0,0,0,.2);}
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;}
+  header{padding:22px 28px 18px;border-bottom:1px solid var(--line);background:var(--panel)}
+  .title{font-size:20px;font-weight:650;letter-spacing:.2px}
+  .subtitle{color:var(--muted);font-size:12.5px;margin-top:3px}
+  .badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .badge{font-size:11.5px;padding:3px 10px;border-radius:20px;background:var(--brand-soft);
+    color:var(--brand);border:1px solid var(--line)}
+  .badge.ok{background:var(--ok-soft);color:var(--ok)}
+  main{max-width:1240px;margin:0 auto;padding:22px 24px 48px;
+    display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    box-shadow:var(--shadow);padding:18px;margin-bottom:18px}
+  .card h2{font-size:13px;margin:0 0 14px;font-weight:650;letter-spacing:.3px;
+    text-transform:uppercase;color:var(--muted)}
+  .drop{border:1.5px dashed var(--line);border-radius:10px;padding:26px 16px;text-align:center;
+    cursor:pointer;transition:.15s;background:transparent}
+  .drop:hover,.drop.over{border-color:var(--brand);background:var(--brand-soft)}
+  .drop strong{display:block;font-size:14px;margin-bottom:4px}
+  .drop span{color:var(--muted);font-size:12px}
+  input[type=file]{display:none}
+  .files{margin-top:12px;display:flex;flex-direction:column;gap:7px;max-height:168px;overflow:auto}
+  .file{display:flex;align-items:center;gap:10px;padding:7px 9px;border:1px solid var(--line);
+    border-radius:8px;font-size:12.5px}
+  .file img{width:38px;height:30px;object-fit:cover;border-radius:4px;background:var(--bg);flex:none}
+  .file .fn{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .file .sz{color:var(--muted);font-size:11.5px;flex:none}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+  select,input[type=number]{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;
+    background:var(--bg);color:var(--text);font:inherit;font-size:13px;outline:none}
+  select:focus,input:focus{border-color:var(--brand)}
+  .row{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+  .row input[type=checkbox]{accent-color:var(--brand);width:15px;height:15px}
+  .crop{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}
+  .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+  button{padding:9px 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);
+    color:var(--text);font:inherit;font-size:12.5px;cursor:pointer;transition:.15s}
+  button:hover:not(:disabled){border-color:var(--brand);color:var(--brand)}
+  button.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+  button.primary:hover:not(:disabled){filter:brightness(1.08);color:#fff}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;
+    font:12px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;
+    word-break:break-word;max-height:230px;overflow:auto;margin:0}
+  .log{font:11.5px/1.7 ui-monospace,Consolas,monospace;color:var(--muted);
+    max-height:150px;overflow:auto;margin-top:10px}
+  .log .e{color:var(--err)} .log .s{color:var(--ok)}
+  .preview{width:100%;height:190px;object-fit:contain;background:var(--bg);
+    border:1px solid var(--line);border-radius:8px;display:block}
+  .formats{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .chip{font-size:11px;padding:3px 9px;border-radius:6px;border:1px solid var(--line);
+    background:var(--ok-soft);color:var(--ok)}
+  .chip.off{background:var(--bg);color:var(--muted);text-decoration:line-through}
+  code{background:var(--bg);padding:1px 5px;border-radius:4px;font-size:12px}
+  .note{color:var(--muted);font-size:12px;margin:10px 0 0}
+  @media(max-width:900px){main{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="title">SimdCodecs 图片工作台 · API 测试台</div>
+  <div class="subtitle">纯托管 .NET 10 图片编解码服务 · 图片只在本地进程内处理，不落临时文件、不上传第三方</div>
+  <div class="badges" id="badges"><span class="badge">正在连接服务…</span></div>
+</header>
+
+<main>
+  <section>
+    <div class="card">
+      <h2>1 · 选择图片</h2>
+      <div class="drop" id="drop">
+        <strong>拖放图片到这里，或点击选择</strong>
+        <span>支持多选 · HEIC / TIFF / JPEG 2000 / JBIG2 / QOI / GIF / PNG / JPEG / WebP …</span>
+      </div>
+      <input type="file" id="file" multiple accept="image/*,.heic,.heif,.tif,.tiff,.jp2,.j2k,.jbig2,.qoi,.ppm,.pgm,.pbm">
+      <div class="files" id="files"></div>
+    </div>
+
+    <div class="card">
+      <h2>2 · 转换参数</h2>
+      <div class="grid">
+        <div><label>一键预设（选中后接管格式 / 质量 / 拆页）</label><select id="preset"></select></div>
+        <div><label>目标格式</label><select id="target"></select></div>
+        <div><label>质量（JPEG / 有损 WebP，1–100）</label><input type="number" id="quality" value="88" min="1" max="100"></div>
+        <div><label>解码期缩放</label>
+          <select id="scale"><option value="1">原尺寸 1/1</option><option value="2">1/2</option>
+            <option value="4">1/4</option><option value="8">1/8</option></select></div>
+        <div><label>指定帧（从 0 开始）</label><input type="number" id="frame" value="0" min="0" max="199"></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <input type="checkbox" id="orient" checked><label for="orient" style="margin:0">按 EXIF 自动转正</label>
+        <input type="checkbox" id="frames"><label for="frames" style="margin:0">批量时逐帧导出</label>
+      </div>
+      <div style="margin-top:12px">
+        <label>API Key（仅当服务端开启鉴权时填写，保存在本机浏览器）</label>
+        <input type="password" id="apiKey" autocomplete="off" placeholder="留空 = 服务端未开启鉴权">
+      </div>
+      <label style="margin-top:14px">区域裁剪（解码期只取该块，留空为整图）</label>
+      <div class="crop">
+        <input type="number" id="x" placeholder="x"><input type="number" id="y" placeholder="y">
+        <input type="number" id="w" placeholder="w"><input type="number" id="h" placeholder="h">
+      </div>
+      <div class="btns">
+        <button class="primary" id="convert" disabled>转换并下载</button>
+        <button id="inspect" disabled>预检信息</button>
+        <button id="thumb" disabled>生成缩略图</button>
+        <button id="batch" disabled>批量打包 ZIP</button>
+        <button id="split" disabled>多帧拆页 ZIP</button>
+      </div>
+      <p class="note">编解码层只支持 1/2ⁿ 解码期降采样；任意尺寸缩放、滤镜、水印与裸像素导出见下方处理层（纯托管实现，不需要 SkiaSharp）。</p>
+    </div>
+
+    <div class="card">
+      <h2>3 · 图像处理与 CV 输入</h2>
+      <div class="grid">
+        <div><label>任意尺寸缩放 · 宽</label><input type="number" id="resizeW" placeholder="0 = 不缩放" min="0" max="16384"></div>
+        <div><label>任意尺寸缩放 · 高</label><input type="number" id="resizeH" placeholder="0 = 按比例" min="0" max="16384"></div>
+        <div><label>亮度（-100 ~ 100）</label><input type="number" id="brightness" value="0" min="-100" max="100"></div>
+        <div><label>对比度（0.1 ~ 3）</label><input type="number" id="contrast" value="1" step="0.1" min="0.1" max="3"></div>
+        <div><label>几何水印文本</label><input type="text" id="watermark" placeholder="留空 = 不加水印"></div>
+        <div><label>裸像素布局</label><select id="layout">
+          <option value="bgra32">Bgra32（显示 / Skia）</option>
+          <option value="gray8">Gray8（OCR）</option>
+          <option value="bgr24">Bgr24（OpenCV Mat）</option>
+          <option value="rgb24">Rgb24</option>
+        </select></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <input type="checkbox" id="gray"><label for="gray" style="margin:0">灰度化</label>
+        <input type="checkbox" id="invert"><label for="invert" style="margin:0">反色</label>
+      </div>
+      <div class="btns">
+        <button class="primary" id="process" disabled>处理并下载</button>
+        <button id="pixels" disabled>导出裸像素（含 CV 分析）</button>
+      </div>
+      <p class="note">裸像素返回连续字节，响应头带 X-Width / X-Height / X-Stride / X-Cv-Otsu-Threshold / X-Cv-Text-Rows，可直接喂给 OCR 或 OpenCV。</p>
+    </div>
+
+    <div class="card">
+      <h2>请求日志</h2>
+      <div class="log" id="log">等待操作。</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <h2>预览</h2>
+      <img class="preview" id="preview" alt="缩略图预览">
+    </div>
+    <div class="card">
+      <h2>响应信息</h2>
+      <pre id="info">选择文件后显示头部预检结果与响应统计。</pre>
+    </div>
+    <div class="card">
+      <h2>能力清单</h2>
+      <div class="formats" id="formats"></div>
+      <p class="note" id="notes"></p>
+    </div>
+    <div class="card">
+      <h2>curl 示例</h2>
+      <pre>curl -F "file=@photo.heic" \
+     -F "target=WebP" -F "quality=85" \
+     http://localhost:5080/api/convert \
+     -o photo.webp
+
+# 一键预设：HEIC 批量转 JPEG / 扫描件拆页
+curl -F "files=@IMG_001.HEIC" -F "files=@IMG_002.HEIC" \
+     -F "preset=heic-jpeg" \
+     http://localhost:5080/api/batch -o photos.zip
+
+curl -F "files=@scan.tiff" -F "preset=scan-split" \
+     http://localhost:5080/api/batch -o pages.zip
+
+# 纯托管处理层 + OCR 裸像素
+curl -F "file=@a.png" -F "resizeW=800" \
+     -F "brightness=10" -F "watermark=demo" \
+     http://localhost:5080/api/process -o a-processed.png
+
+curl -F "file=@a.png" -F "layout=gray8" \
+     http://localhost:5080/api/pixels -o a.gray8.raw
+
+# 运维探针与指标（可选鉴权时加 -H "X-Api-Key: $KEY"）
+curl http://localhost:5080/api/ready
+curl http://localhost:5080/api/metrics
+curl "http://localhost:5080/api/metrics?format=prometheus"</pre>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let files = [];
+
+// 服务端开启 ApiRuntime:Auth 后，所有 /api 业务请求都要带 X-Api-Key；
+// 默认部署不需要，Key 只存在浏览器 localStorage，不写进 URL、不回传第三方。
+function apiHeaders() {
+  const key = ($('apiKey')?.value || '').trim();
+  return key ? { 'X-Api-Key': key } : {};
+}
+$('apiKey').value = localStorage.getItem('simdcodecs.apiKey') || '';
+$('apiKey').addEventListener('change', () => {
+  localStorage.setItem('simdcodecs.apiKey', $('apiKey').value.trim());
+  log($('apiKey').value.trim() ? '已保存 API Key' : '已清除 API Key', 's');
+});
+
+function log(msg, kind = '') {
+  const el = $('log');
+  const line = document.createElement('div');
+  if (kind) line.className = kind;
+  line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  el.prepend(line);
+  if (el.children.length > 40) el.lastChild.remove();
+}
+
+function show(obj) {
+  $('info').textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+}
+
+function fields(extra = []) {
+  const fd = new FormData();
+  const preset = $('preset').value;
+  const common = [
+    ['scale', $('scale').value], ['frame', $('frame').value],
+    ['orient', $('orient').checked ? 'true' : 'false']
+  ];
+  // 选中预设时故意不传 target / quality / frames，让服务端按预设填充。
+  const base = (preset
+    ? [['preset', preset], ...common]
+    : [['target', $('target').value], ['quality', $('quality').value],
+       ['frames', $('frames').checked ? 'true' : 'false'], ...common]
+  ).concat(extra);
+  for (const [k, v] of base) if (v !== '' && v !== null && v !== undefined) fd.append(k, v);
+  for (const id of ['x', 'y', 'w', 'h']) {
+    const v = $(id).value.trim();
+    if (v !== '') fd.append(id, v);
+  }
+  return fd;
+}
+
+function oneFile(fd) { fd.append('file', files[0], files[0].name); return fd; }
+function allFiles(fd) { files.forEach(f => fd.append('files', f, f.name)); return fd; }
+
+// 处理端点自己决定格式，去掉预设的源格式约束，再补上处理算子参数。
+function processFields() {
+  const fd = fields();
+  fd.delete('preset');
+  fd.set('target', $('target').value);
+  fd.set('quality', $('quality').value);
+  for (const id of ['resizeW', 'resizeH', 'brightness', 'contrast', 'layout'])
+    if ($(id).value !== '') fd.set(id, $(id).value);
+  fd.set('gray', $('gray').checked ? 'true' : 'false');
+  fd.set('invert', $('invert').checked ? 'true' : 'false');
+  if ($('watermark').value.trim()) fd.set('watermark', $('watermark').value.trim());
+  return fd;
+}
+
+async function call(path, fd, want = 'json') {
+  log(`POST ${path} · ${[...fd.keys()].filter(k => k === 'file' || k === 'files').length} 个文件`);
+  const resp = await fetch(path, { method: 'POST', body: fd, headers: apiHeaders() });
+  if (!resp.ok) {
+    let detail = resp.statusText;
+    try { const p = await resp.json(); detail = p.detail || detail; } catch (_) {}
+    log(`HTTP ${resp.status} ${detail}`, 'e');
+    show(`HTTP ${resp.status}\n${detail}`);
+    throw new Error(detail);
+  }
+  const blob = await resp.blob();
+  const stat = {};
+  for (const k of ['X-Source-Format','X-Target-Format','X-Decoded-Width','X-Decoded-Height',
+    'X-Decode-Ms','X-Input-Bytes','X-Output-Bytes','X-Saved-Percent','X-Frame-Index',
+    'X-Frame-Count','X-Batch-Ok','X-Batch-Failed','X-Batch-Skipped','X-Preset-Id',
+    'X-Thumbnail-Width','X-Thumbnail-Height','X-Process-Steps','X-Pixel-Layout',
+    'X-Output-Width','X-Output-Height','X-Width','X-Height','X-Stride','X-Bytes-Per-Pixel',
+    'X-Cv-Otsu-Threshold','X-Cv-Ink-Ratio','X-Cv-Text-Rows']) {
+    if (resp.headers.has(k)) stat[k] = resp.headers.get(k);
+  }
+  if (Object.keys(stat).length) show(stat);
+  log(`HTTP ${resp.status} · ${blob.size} B`, 's');
+  return { resp, blob, stat };
+}
+
+function download(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  log(`已触发下载：${name}`, 's');
+}
+
+function outName(ext) {
+  const base = (files[0]?.name || 'output').replace(/\.[^.]+$/, '');
+  return base + ext;
+}
+
+function renderFiles() {
+  const box = $('files');
+  box.innerHTML = '';
+  files.forEach((f, i) => {
+    const row = document.createElement('div');
+    row.className = 'file';
+    row.innerHTML = `<span style="color:var(--muted)">${i + 1}</span>
+      <span class="fn"></span><span class="sz">${(f.size / 1024).toFixed(0)} KB</span>`;
+    row.querySelector('.fn').textContent = f.name;
+    box.appendChild(row);
+  });
+  const has = files.length > 0;
+  ['convert','inspect','thumb','batch','split','process','pixels'].forEach(id => $(id).disabled = !has);
+  $('batch').disabled = files.length < 2;
+  $('split').disabled = files.length !== 1;
+  $('process').disabled = files.length !== 1;
+  $('pixels').disabled = files.length !== 1;
+}
+
+function setFiles(list) {
+  files = Array.from(list);
+  renderFiles();
+  if (files.length) { log(`已加入 ${files.length} 个文件`); doInspect(); doThumb(); }
+}
+
+$('drop').onclick = () => $('file').click();
+$('file').onchange = e => setFiles(e.target.files);
+['dragenter','dragover'].forEach(t => $('drop').addEventListener(t, e => {
+  e.preventDefault(); $('drop').classList.add('over');
+}));
+['dragleave','drop'].forEach(t => $('drop').addEventListener(t, e => {
+  e.preventDefault(); $('drop').classList.remove('over');
+}));
+$('drop').addEventListener('drop', e => setFiles(e.dataTransfer.files));
+
+async function doInspect() {
+  try {
+    const fd = oneFile(fields());
+    const { blob } = await call('/api/inspect', fd);
+    show(JSON.parse(await blob.text()));
+  } catch (_) {}
+}
+
+async function doThumb() {
+  try {
+    const fd = oneFile(new FormData());
+    fd.append('box', '320');
+    const { blob } = await call('/api/thumbnail', fd, 'blob');
+    const url = URL.createObjectURL(blob);
+    $('preview').src = url;
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  } catch (_) {}
+}
+
+$('inspect').onclick = doInspect;
+$('thumb').onclick = doThumb;
+$('convert').onclick = async () => {
+  try {
+    const { blob } = await call('/api/convert', oneFile(fields()));
+    const map = { JPEG: '.jpg', 'PNG 量化': '.png', PNG: '.png', WebP: '.webp', 'WebP 无损': '.webp' };
+    download(blob, outName(map[$('target').value] || '.png'));
+  } catch (_) {}
+};
+$('batch').onclick = async () => {
+  try { const { blob } = await call('/api/batch', allFiles(fields())); download(blob, 'simdcodecs-batch.zip'); }
+  catch (_) {}
+};
+$('split').onclick = async () => {
+  try { const { blob } = await call('/api/frames', oneFile(fields())); download(blob, 'simdcodecs-frames.zip'); }
+  catch (_) {}
+};
+$('process').onclick = async () => {
+  try {
+    const { blob } = await call('/api/process', oneFile(processFields()));
+    const map = { JPEG: '.jpg', 'PNG 量化': '.png', PNG: '.png', WebP: '.webp', 'WebP 无损': '.webp' };
+    download(blob, outName('-processed' + (map[$('target').value] || '.png')));
+  } catch (_) {}
+};
+$('pixels').onclick = async () => {
+  try {
+    const { blob, resp } = await call('/api/pixels', oneFile(processFields()));
+    show({
+      layout: resp.headers.get('X-Pixel-Layout'),
+      width: resp.headers.get('X-Width'),
+      height: resp.headers.get('X-Height'),
+      stride: resp.headers.get('X-Stride'),
+      bytesPerPixel: resp.headers.get('X-Bytes-Per-Pixel'),
+      ocr: {
+        otsuThreshold: resp.headers.get('X-Cv-Otsu-Threshold'),
+        inkRatio: resp.headers.get('X-Cv-Ink-Ratio'),
+        textRows: resp.headers.get('X-Cv-Text-Rows')
+      },
+      rawBytes: blob.size
+    });
+    download(blob, outName('.' + $('layout').value + '.raw'));
+  } catch (_) {}
+};
+
+(async function init() {
+  try {
+    const h = await (await fetch('/api/health', { headers: apiHeaders() })).json();
+    $('badges').innerHTML = `<span class="badge ok">服务在线</span>
+      <span class="badge">.NET ${h.runtime}</span>
+      <span class="badge ok">HEIF ${h.heifRegistered ? '已注册' : '未注册'}</span>
+      <span class="badge">纯托管 · 零原生 DLL</span>
+      <span class="badge ok">处理层就绪</span>
+      <span class="badge">${(h.presets || []).length} 个预设</span>
+      <span class="badge">单文件上限 ${(h.limits.maxFileBytes/1048576).toFixed(0)} MB</span>
+      <span class="badge">像素上限 ${(h.limits.maxPixels/1000000).toFixed(0)} MP</span>`;
+    log('服务已连接', 's');
+  } catch (_) {
+    $('badges').innerHTML = '<span class="badge">服务未连接：请先启动 SimdCodecs.Api</span>';
+    show('无法连接 /api/health。请在项目目录执行：\n\ndotnet run -c Release --project SimdCodecs.Api');
+  }
+  try {
+    const p = await (await fetch('/api/presets', { headers: apiHeaders() })).json();
+    $('preset').innerHTML = '<option value="">不使用预设（手动指定参数）</option>' +
+      p.presets.map(x => `<option value="${x.id}" title="${x.description}">${x.label}</option>`).join('');
+  } catch (_) {}
+  try {
+    const f = await (await fetch('/api/formats', { headers: apiHeaders() })).json();
+    $('target').innerHTML = f.outputs.map(o =>
+      `<option value="${o.label}">${o.label} (${o.extension})</option>`).join('');
+    $('target').value = 'WebP';
+    $('formats').innerHTML = f.inputs.map(i =>
+      `<span class="chip ${i.decodable ? '' : 'off'}" title="${i.decodable ? '可解码' : '仅识别，不可解码'}">${i.name}</span>`).join('');
+    $('notes').textContent = f.notes.join(' · ');
+  } catch (_) {}
+})();
+</script>
+</body>
+</html>

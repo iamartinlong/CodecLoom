@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>SimdCodecs.Core</RootNamespace>
+    <AssemblyName>SimdCodecs.Core</AssemblyName>
+  </PropertyGroup>
+
+  <!-- 这一层刻意只依赖 SimdCodecs，不引用任何 UI / Web 框架。
+       桌面客户端、命令行、ASP.NET Core 服务共用同一份实现。 -->
+  <ItemGroup>
+    <!-- 精确锁定 2.0.0（方括号版本区间），避免上游 2.x 的破坏性变更被自动解析进来。
+         升级必须先跑 docs/01-规划方案.md 第 8 节的全套回归。 -->
+    <PackageReference Include="Sdcb.SimdCodecs" Version="[2.0.0]" />
+    <PackageReference Include="Sdcb.SimdCodecs.Heif" Version="[2.0.0]" />
+  </ItemGroup>
+
+</Project>

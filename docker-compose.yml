@@ -1,0 +1,31 @@
+services:
+  codecloom-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: codecloom-api:local
+    container_name: codecloom-api
+    ports:
+      - "5080:8080"
+    environment:
+      ASPNETCORE_URLS: "http://+:8080"
+      ApiRuntime__StructuredLog: "true"
+      # 生产环境建议打开鉴权与限流（开关默认关闭，便于本地直接访问测试台）：
+      # ApiRuntime__Auth__Enabled: "true"
+      # ApiRuntime__Auth__Key: "${CODECLOOM_API_KEY:?set CODECLOOM_API_KEY}"
+      # ApiRuntime__RateLimit__Enabled: "true"
+      # ApiRuntime__RateLimit__PermitLimit: "60"
+      # ApiRuntime__RateLimit__WindowSeconds: "60"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1G
+    restart: unless-stopped

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    可选处理层：只依赖 BCL，不引用 Core，也不引用 SkiaSharp / ImageSharp / 任何原生库。
+    这样即使启用 NativeAOT、浏览器 WASM 或裁剪，也不会把原生 DLL 带进部署产物。
+    Core 保持纯粹的「文件字节 <-> 像素」职责，处理算子独立演进。
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+</Project>

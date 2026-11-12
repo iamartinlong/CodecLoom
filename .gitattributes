@@ -1,0 +1,27 @@
+# 统一换行符，避免 Win/Linux 双矩阵 CI 出现整文件 diff
+* text=auto
+
+*.cs        text
+*.csproj    text
+*.slnx      text
+*.md        text
+*.yml       text
+*.yaml      text
+*.json      text
+*.xml       text
+*.sh        text eol=lf
+
+# 二进制资产，禁止换行符转换
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.heic      binary
+*.tiff      binary
+*.tif       binary
+*.gif       binary
+*.ico       binary
+*.zip       binary
+*.msix      binary
+*.pfx       binary
+*.exe       binary
+*.dll       binary

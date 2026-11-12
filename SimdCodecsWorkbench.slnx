@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="SimdCodecs.Api/SimdCodecs.Api.csproj" />
+  <Project Path="SimdCodecs.Core/SimdCodecs.Core.csproj" />
+  <Project Path="SimdCodecs.Processing/SimdCodecs.Processing.csproj" />
+  <Project Path="SimdCodecs.Tests/SimdCodecs.Tests.csproj" />
+  <Project Path="SimdCodecsViewer/SimdCodecsViewer.csproj" />
+</Solution>
