@@ -58,3 +58,6 @@ ui-align-*.png
 aot-self-test.log
 aot-self-test.err
 aot-selftest.log
+
+# Inno Setup 编译输出（走 GitHub Release 而非源码仓库）
+installer/Output/

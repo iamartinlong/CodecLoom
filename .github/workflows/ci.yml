@@ -257,10 +257,24 @@ jobs:
           Compress-Archive -Path dist/portable/* -DestinationPath CodecLoom-win-x64-portable.zip
           Compress-Archive -Path dist/api/* -DestinationPath CodecLoom-api.zip
 
+      - name: 编译 Inno Setup 安装包（setup.exe）
+        shell: bash
+        run: |
+          choco install innosetup -y --no-progress | tail -2
+          ISCC="$(ls "/c/Program Files (x86)/Inno Setup 6/ISCC.exe" 2>/dev/null || ls "/c/Program Files/Inno Setup 6/ISCC.exe")"
+          echo "ISCC = $ISCC"
+          # tag 形如 v1.2.3 → 版本号 1.2.3
+          VER="${GITHUB_REF_NAME#v}"
+          "$ISCC" //DAppVersion="$VER" installer/CodecLoom.iss
+          test -f "installer/Output/CodecLoom-setup-$VER.exe"
+          test "$(du -m "installer/Output/CodecLoom-setup-$VER.exe" | cut -f1)" -gt 50
+          cp "installer/Output/CodecLoom-setup-$VER.exe" ./
+
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             CodecLoom-win-x64-single.zip
             CodecLoom-win-x64-portable.zip
             CodecLoom-api.zip
+            CodecLoom-setup-*.exe
           generate_release_notes: true

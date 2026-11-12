@@ -153,7 +153,7 @@ git push -u origin main
 | 触发 | 动作 | 产物 |
 | --- | --- | --- |
 | push 到 `main` / `master` | 构建并推送容器镜像到 GHCR | `ghcr.io/iamartinlong/codecloom:latest`、`:main`、`:sha-<短 SHA>` |
-| push `v*` tag | 同上 + 创建 GitHub Release | `CodecLoom-win-x64-single.zip`、`CodecLoom-win-x64-portable.zip`、`CodecLoom-api.zip`（含自动生成的 release notes） |
+| push `v*` tag | 同上 + 创建 GitHub Release | `CodecLoom-win-x64-single.zip`、`CodecLoom-win-x64-portable.zip`、`CodecLoom-api.zip`、`CodecLoom-setup-<版本>.exe`（含自动生成的 release notes） |
 
 ```bash
 # 发布一个版本
@@ -166,7 +166,9 @@ curl http://127.0.0.1:5080/api/ready
 
 PR 与手动 `workflow_dispatch` 只跑 CI，不推镜像、不发 Release。
 
-MSIX 用本地自签证书签名，**私钥不入库、CI 不产出 MSIX**；公开发行需正式代码签名证书（见 `docs/03-待办清单.md` X-6）。CI 分发的桌面产物是可直接解压运行的便携 zip。
+桌面分发两条路：**免安装**——解压 `CodecLoom-win-x64-portable.zip` 直接运行（无需 .NET 运行时）；**安装版**——`CodecLoom-setup-<版本>.exe` 由 [Inno Setup](https://jrsoftware.org/isinfo.php) 生成（脚本 `installer/CodecLoom.iss`），支持中文向导、用户级安装（无需管理员，装到 `%LOCALAPPDATA%\Programs\CodecLoom`）、开始菜单/可选桌面快捷方式与系统卸载。安装器无代码签名证书，SmartScreen 首次运行会提示「仍要运行」。
+
+MSIX 包只在本地生成（自签证书，**私钥不入库、CI 不产出 MSIX**）；公开发行需正式代码签名证书（见 `docs/03-待办清单.md` X-6）。
 
 ## 能力边界与风险
 
