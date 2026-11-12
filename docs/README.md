@@ -9,7 +9,7 @@
 | [03-待办清单.md](03-待办清单.md) | 可执行待办，含优先级、状态、验收标准 | 每轮推进前后 |
 | [04-工作日志.md](04-工作日志.md) | 按轮次记录实跑数据、踩坑与决策 | 每完成一轮工作 |
 
-另有 `.workbuddy/memory/2026-11-11.md` 为工作区记忆（会话级摘要），`docs/04-工作日志.md` 是它的对外可读版本，两者事实应保持一致。
+另有本地智能体工作区记忆（`.workbuddy/memory/`，已被 `.gitignore` 排除，不入库）；`docs/04-工作日志.md` 是它的对外可读版本，两者事实应保持一致。
 
 ## 当前状态速览
 
@@ -31,8 +31,9 @@
   - `SimdCodecsViewer/publish-single/SimdCodecsViewer.exe`（12 MB 框架依赖单文件）、`SimdCodecs.Api/publish/SimdCodecs.Api.exe`、`aot-probe/SimdCodecsViewer.exe`（23 MB NativeAOT 原生 exe，0 条 IL 裁剪警告）。
 - 桌面设置持久化：窗口尺寸 / 输出目录 / 预设 / 处理参数存 `%APPDATA%/SimdCodecsViewer/settings.json`，损坏自动回默认；界面语言中/英可切换（重启生效）。
 - 最新回归：**xUnit 74/74 + selftest 58/58 / GUI 冒烟 6/6 / API 集成 41/41 全绿**，便携 zip 与自包含产物复验通过（详见 `04-工作日志.md` 第十轮）。
-- 工程化：`.github/workflows/ci.yml`（Windows/Ubuntu 矩阵 + Xvfb + GHCR 镜像 + tag Release）、`Dockerfile`（chiseled）+ `docker-compose.yml` + 根 `README.md` 已落地；**docker build 实测待 Docker daemon 启动后补跑**。
-- 产品名 **CodecLoom**（仓库 `codecloom`）：对外标识已统一，项目名 / 命名空间 / 解决方案文件名保留技术名不变；推送与 CI/CD 步骤见根 `README.md`。
+- 远端 CI/CD 首跑：Actions run #1 `43131782994` **整体 success**（双矩阵回归 + AOT + GHCR 4 job 全绿），镜像 `ghcr.io/iamartinlong/codecloom:sha-35bee0a` 已公开；`release` 无 tag 跳过（详见 `04-工作日志.md` 第十二轮）。
+- 工程化：`.github/workflows/ci.yml`（Windows/Ubuntu 矩阵 + Xvfb + GHCR 镜像 + tag Release）、`Dockerfile`（chiseled）+ `docker-compose.yml` + 根 `README.md` 已落地；**远端 CI 已用同一 Dockerfile 构建成功**；本机 `docker build/run` 实测仍待 Docker daemon 启动后补跑。
+- 产品名 **CodecLoom**，远端仓库 [`iamartinlong/CodecLoom`](https://github.com/iamartinlong/CodecLoom)（默认分支 `main`，已首次推送）：对外标识已统一，项目名 / 命名空间 / 解决方案文件名保留技术名不变；推送与 CI/CD 步骤见根 `README.md`，首跑证据见 `04-工作日志.md` 第十二轮。
 
 ## 快速命令
 
@@ -70,8 +71,8 @@ dotnet publish SimdCodecsViewer/SimdCodecsViewer.csproj -c Release -r win-x64 \
 ## 下一步
 
 P0–P2 全部收口，剩余均为外部条件项：
-- docker build / run 实测（待 Docker daemon 启动）。
+- 本机 docker build / run 实测（待 Docker daemon 启动；远端 CI 已构建成功）。
 - MSIX 安装验证（需管理员导入证书后 `Add-AppxPackage`）。
-- CI/CD 在 GitHub 上首次运行（仓库名 `codecloom`，推送命令见根 `README.md`；工作流与忽略规则已就绪）。
+- 首个 `v*` tag 触发的 GitHub Release 产物链路待验证（run #1 无 tag，按预期跳过）。
 - 自动更新（登记为 X-6 不排期，待产品化决策）。
 - 上游限制（AVIF / JPEG XL 解码、HEVC 专利、.NET 10 门槛、`Stream` 整读内存、2 GB 上限）不排期。详见 `03-待办清单.md`。

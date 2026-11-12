@@ -95,7 +95,7 @@ curl -F "file=@a.png" -F "layout=gray8" \
 - 命令行同时接受习惯写法 `--ApiRuntime__Auth__Enabled=true`（程序会自动把 `__` 归一化成 `:`）。
 - 指标为进程内计数（总请求 / 错误 / 429 / p95 / 按端点与状态码），重启清零；不引入 Prometheus 客户端包，避免破坏 AOT 与零依赖主张。
 
-## 验证状态（2026-11-11）
+## 验证状态（2026-11-12）
 
 | 验证 | 结果 |
 | --- | --- |
@@ -104,7 +104,8 @@ curl -F "file=@a.png" -F "layout=gray8" \
 | 覆盖率（coverlet Cobertura） | line **71.15%** / branch **58.13%** |
 | `--selftest` / `--smoke` / `--apitest` | **58 / 6 / 41** 全绿 |
 | 发布产物 | 框架依赖单文件 exe（12 MB）、API publish、23 MB NativeAOT 原生 exe 均复验通过 |
-| GitHub Actions / Docker 实跑 | 工作流（CI + CD）与 Dockerfile 已落地，命令已本机复现；远端 Runner 与 Docker daemon 尚未实跑，详见 `docs/04-工作日志.md` |
+| GitHub Actions 远端首跑 | **run #1 `43131782994` 整体 success**：Ubuntu/Windows 双矩阵回归 + NativeAOT + GHCR 镜像 4 个 job 全绿，`release` 因无 `v*` tag 按预期跳过，详见 `docs/04-工作日志.md` 第十二轮 |
+| Docker 镜像 | CI 已用同一份 `Dockerfile` 构建并推送 `ghcr.io/iamartinlong/codecloom:latest` / `:main` / `:sha-35bee0a`（Public）；本机 `docker build` / `compose up` 仍待 daemon 启动 |
 
 ## 推送到 GitHub 与 CI/CD
 
