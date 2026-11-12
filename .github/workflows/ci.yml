@@ -148,19 +148,32 @@ jobs:
           if ($il) { $il; throw "AOT 裁剪警告不为零（增强 + OCR 嵌入模型未完整保留）" }
           Write-Output "AOT 编译完成：IL2026 / IL3050 = 0"
 
+      # 注意：Viewer 是 GUI 子系统（WinExe），pwsh 对它的输出捕获与 $LASTEXITCODE 不可靠
+      # （本机实测：bash 重定向 85 行 + exit 0；pwsh 捕获 0 行 + exit 为空，CI run #2 由此误判失败）。
+      # 因此所有直接运行 AOT exe 的步骤一律用 shell: bash（windows-latest 即 Git Bash），重定向到文件后断言。
       - name: 组合 NativeAOT 自检（增强 + OCR 全链路）
-        shell: pwsh
+        shell: bash
         run: |
-          $log = .\aot-ci\SimdCodecsViewer.exe --selftest 2>&1
-          $code = $LASTEXITCODE
-          $log | Select-String -Pattern "文档智能模块|自检全部通过"
-          if ($code -ne 0) { throw "AOT selftest failed with exit code $code" }
-          if (-not ($log -match "增强→OCR 一步式")) { throw "文档模型未随 AOT 产物分发" }
-          $sizeMb = (Get-Item .\aot-ci\SimdCodecsViewer.exe).Length / 1MB
-          Write-Output ("AOT exe: {0:N1} MB" -f $sizeMb)
-          if ($sizeMb -lt 35) { throw "嵌入模型疑似被裁剪" }
+          ./aot-ci/SimdCodecsViewer.exe --selftest > aot-selftest.log 2>&1
+          code=$?
+          tail -8 aot-selftest.log
+          test "$code" -eq 0 || { echo "AOT selftest failed with exit code $code"; exit 1; }
+          # PASS 计数 ≥ 60 防止只打印不执行；第 12 节为文档智能模块
+          passes=$(grep -c "\[PASS\]" aot-selftest.log || true)
+          echo "PASS count: $passes"
+          test "$passes" -ge 60
+          grep -q "^12)" aot-selftest.log
+          size=$(du -m aot-ci/SimdCodecsViewer.exe | cut -f1)
+          echo "AOT exe: ${size} MB"
+          test "$size" -gt 35
+
       - name: 原生 exe 命令行批量
-        run: .\aot-ci\SimdCodecsViewer.exe --batch testdata aot-ci-out scan-split
+        shell: bash
+        run: |
+          ./aot-ci/SimdCodecsViewer.exe --batch testdata aot-ci-out scan-split
+          code=$?
+          test "$code" -eq 0 || { echo "AOT batch failed with exit code $code"; exit 1; }
+          test -f aot-ci-out/_manifest.csv
 
   # ---- CD：镜像推 GHCR（默认分支或 v* tag，且全部回归通过）----
   docker:

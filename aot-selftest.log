@@ -1,0 +1,85 @@
+SimdCodecs 自检，输出目录：C:\Users\martinlong\WorkBuddy\2026-11-11-09-08-27\aot-probe\doc-combined\selftest-output
+HEIF 解码器显式注册完成（Sdcb.SimdCodecs.Heif）
+  [PASS] HEIF/HEIC 解码器注册成功
+  [PASS] AVIF 按预期只识别、不解码
+1) 编码三种格式
+  [PASS] gradient.png 写出 (914 B)
+  [PASS] gradient.jpg 写出 (7108 B)
+  [PASS] gradient.webp 写出 (1436 B)
+2) 解码回 Bgra32
+  [PASS] gradient.png -> 320x240, stride=1280, 0.84 ms, format=Png
+  [PASS] gradient.jpg -> 320x240, stride=1280, 1.70 ms, format=Jpeg
+  [PASS] gradient.webp -> 320x240, stride=1280, 1.07 ms, format=Webp
+3) 解码期 1/4 缩放
+  [PASS] 320x240 -> 80x60，0.83 ms
+4) 另存为（含量化 PNG 与元数据透传）
+  [PASS] 量化 PNG 写出 PLTE 调色板块（pngquant 模式生效）
+       注：平滑渐变 无损 914 B / 量化 20981 B，这类图量化反而变大，属正常行为
+  [PASS] quantized.png 可回读 (320x240, 20981 B)
+  [PASS] converted.jpg 可回读 (320x240, 3683 B)
+  [PASS] converted-lossless.webp 可回读 (320x240, 198 B)
+5) 照片类图片验证量化收益
+  [PASS] 照片类量化 60524 B < 无损 186448 B（省 67.5%）
+6) 文件头预检（上传前置校验）
+  [PASS] 正常 PNG 预检：320×240 · Png · 1 KB
+  [PASS] 损坏文件被拦下：识别为 Unknown，读不出尺寸（文件头损坏？）
+7) 解码期区域裁剪（只取这块像素）
+  [PASS] 裁剪输出 120x90，0.22 ms
+  [PASS] 裁剪像素与整图对应区域逐字节一致
+  [PASS] 1/2 缩放后裁剪 50x40（region 用的是缩放后坐标）
+8) 多帧动画：生成 3 帧 GIF 再逐帧解码
+  [PASS] 3 帧 GIF 写出 (279 B)
+  [PASS] ImageDecoder 会话报告 FrameCount=3
+  [PASS] 第 2 帧解码成功：64x48，frame=2/3
+  [PASS] 帧时长可读：00:00:00.1200000
+  [PASS] 三帧像素互不相同（动画画布状态正确）
+9) 缩略图（内嵌优先 / 1-8 解码 + 最近邻缩小）
+  [PASS] 缩略图 40x30（4800 B，目标框 64）
+10) 批量转换（并行 / 多帧拆帧 / 错误隔离 / 取消）
+  [PASS] 3 张静态图 + 3 帧动画 = 6 个输出（实际 6）
+  [PASS] 损坏文件单独记为失败，不影响其他文件
+  [PASS] 输出名自动避让，无覆盖：6 个文件
+  [PASS] 批量汇总可生成：完成 6 项，失败 1 项 · 10 KB → 4 KB（省 64.7%）· 累计解码+编码 46 ms
+  [PASS] 取消令牌生效，不留下半截输出文件
+11) 真实 HEIC 实图端到端（libheif / Nokia 一致性样本）
+  [PASS] example.heic 头部预检：Heif 1280x854，718114 B
+  [PASS] example.heic 解码为 Bgra32：1280x854，42.7 ms，像素有内容
+  [PASS] example.heic 转 JPEG 328275 B / PNG 2027440 B，两者均可回读
+  [PASS] example.heic 缩略图 96x64（内嵌缩略图优先）
+  [PASS] C002.heic 头部预检：Heif 1280x720，111897 B
+  [PASS] C002.heic 解码为 Bgra32：1280x720，56.9 ms，像素有内容
+  [PASS] C002.heic 转 JPEG 155850 B / PNG 1111088 B，两者均可回读
+  [PASS] C002.heic 缩略图 96x54（内嵌缩略图优先）
+  [PASS] HEIC 预览图 heic-preview.jpg 已写出，可人工核对画面
+12) ICodecService 抽象层
+  [PASS] 当前注册实现为 SimdCodecService，HEIF 已就绪
+  [PASS] 经接口 Inspect / Load / Targets 与静态门面一致：320×240 · Png · 1 KB → 1/2 缩放 160x120
+13) 一键预设：HEIC 批量转 JPEG（源格式过滤 + 转换清单）
+  [PASS] 预设覆盖了目标格式 / 质量 / 源格式过滤，并记录 PresetId
+  [PASS] 混合队列 3 个文件：1 个 HEIC 转出、2 个非 HEIC 跳过（实际 ok=1 skip=2）
+  [PASS] HEIC → JPEG 输出可回读，宽度与原图一致
+  [PASS] _manifest.csv 记录输入 / 源格式 / 状态，含被跳过项
+14) 扫描件拆页：真实 3 页 TIFF → 页码命名 PNG
+  [PASS] 3 页 TIFF 拆成 -p001/-p002/-p003.png，单帧 PNG 被跳过（实际 3 页）
+  [PASS] 拆出的每一页 PNG 都能被 SimdCodecs 回读
+  [PASS] 转换清单含第 3 页与 Tiff 源格式、页码列，可对账
+15) 纯托管处理层与 OCR / CV 输入
+  [PASS] 任意尺寸双线性缩放 320×240 → 137×91，像素有内容
+  [PASS] Gray8 布局为 w×h 连续字节，转回 Bgra32 后 R=G=B
+  [PASS] Bgr24 字节序与 OpenCV CV_8UC3 一致，往返 Bgra32 逐字节无损
+  [PASS] 亮度 / 反色滤镜生效：128 → 亮度 179 / 反色 127（理论 179 / 127）
+  [PASS] 几何水印改变像素，且不同文本产生不同图案（FNV 相位）
+  [PASS] Otsu 二值化 + 行投影检出 3 个文本行（阈值 0，墨迹 18.8%），Bgr24 布局结果一致
+13) 设置持久化 + 本地化
+  [PASS] 设置 JSON round-trip 21 项字段全等（selftest-settings.json）
+  [PASS] 损坏的设置文件回退默认值且不抛异常
+  [PASS] zh 语言直返原文
+  [PASS] en 语言查表生效且未知 key 回退原文
+12) 文档智能模块：增强 / OCR / 闸门 / 确定性
+  [PASS] 增强→OCR 一步式 + 原图对比可运行（553 ms）
+  [PASS] 增强输出 Bgra32 长度不变、alpha 逐字节保持、像素确有改变、固定 CPU 后端
+  [PASS] 同一输入两次 OCR 文本哈希一致（cbf29ce484222325），结构化行数组自洽
+  [PASS] CTC 开关生效：检测框与逐字符框均为 8 坐标四边形
+  [PASS] DocumentLimits：小图放行 / 超大图 413 / 多帧 422，且不静默缩放
+  [PASS] Runtime 统计自洽（requests=3, failures=0）
+== 自检全部通过 ==
