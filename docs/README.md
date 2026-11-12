@@ -8,8 +8,9 @@
 | [02-实施计划.md](02-实施计划.md) | 阶段划分、交付物、验收标准、依赖关系 | 新增阶段或调整优先级时 |
 | [03-待办清单.md](03-待办清单.md) | 可执行待办，含优先级、状态、验收标准 | 每轮推进前后 |
 | [04-工作日志.md](04-工作日志.md) | 按轮次记录实跑数据、踩坑与决策 | 每完成一轮工作 |
+| [05-工作交接.md](05-工作交接.md) | **接手人入口**：资产与权限、系统全景、运行、验证、CI/CD 发版、风险与排障 | 架构 / 远端 / 基线 / 权限变化时 |
 
-另有本地智能体工作区记忆（`.workbuddy/memory/`，已被 `.gitignore` 排除，不入库）；`docs/04-工作日志.md` 是它的对外可读版本，两者事实应保持一致。
+另有本地智能体工作区记忆（`.workbuddy/memory/`，已被 `.gitignore` 排除，不入库）；`docs/04-工作日志.md` 是它的对外可读版本，两者事实应保持一致。**新接手的人请先读 `05-工作交接.md`。**
 
 ## 当前状态速览
 
@@ -30,7 +31,7 @@
   - `SimdCodecsViewer.msix`（47 MB，已签名可安装；安装前需把 `SimdCodecsDev.pfx` 中的证书导入 `LocalMachine\TrustedPeople`）；
   - `SimdCodecsViewer/publish-single/SimdCodecsViewer.exe`（12 MB 框架依赖单文件）、`SimdCodecs.Api/publish/SimdCodecs.Api.exe`、`aot-probe/SimdCodecsViewer.exe`（23 MB NativeAOT 原生 exe，0 条 IL 裁剪警告）。
 - 桌面设置持久化：窗口尺寸 / 输出目录 / 预设 / 处理参数存 `%APPDATA%/SimdCodecsViewer/settings.json`，损坏自动回默认；界面语言中/英可切换（重启生效）。
-- 最新回归：**xUnit 74/74 + selftest 58/58 / GUI 冒烟 6/6 / API 集成 41/41 全绿**，便携 zip 与自包含产物复验通过（详见 `04-工作日志.md` 第十轮）。
+- 最新回归：**xUnit 74/74 + selftest 58/58 / GUI 冒烟 6/6 / API 集成 41/41 全绿**，便携 zip 与自包含产物复验通过（详见 `04-工作日志.md` 第十轮）；远端 CI/CD 首跑全绿见第十二轮，接手指引见 `05-工作交接.md`。
 - 远端 CI/CD 首跑：Actions run #1 `43131782994` **整体 success**（双矩阵回归 + AOT + GHCR 4 job 全绿），镜像 `ghcr.io/iamartinlong/codecloom:sha-35bee0a` 已公开；`release` 无 tag 跳过（详见 `04-工作日志.md` 第十二轮）。
 - 工程化：`.github/workflows/ci.yml`（Windows/Ubuntu 矩阵 + Xvfb + GHCR 镜像 + tag Release）、`Dockerfile`（chiseled）+ `docker-compose.yml` + 根 `README.md` 已落地；**远端 CI 已用同一 Dockerfile 构建成功**；本机 `docker build/run` 实测仍待 Docker daemon 启动后补跑。
 - 产品名 **CodecLoom**，远端仓库 [`iamartinlong/CodecLoom`](https://github.com/iamartinlong/CodecLoom)（默认分支 `main`，已首次推送）：对外标识已统一，项目名 / 命名空间 / 解决方案文件名保留技术名不变；推送与 CI/CD 步骤见根 `README.md`，首跑证据见 `04-工作日志.md` 第十二轮。
