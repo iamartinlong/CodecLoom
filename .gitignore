@@ -52,3 +52,9 @@ crop-*.png
 ui-info-v*.png
 ui-shot-v*.png
 ui-align-*.png
+
+# ---- 临时诊断与提交信息文件 ----
+.git-commit-msg.tmp
+aot-self-test.log
+aot-self-test.err
+aot-selftest.log
