@@ -3,6 +3,7 @@
 > 调研日期：2026-11-12 · 触发：用户给出微信文章 `https://mp.weixin.qq.com/s/n3v0YuSBvVKiTIHzyTY2IQ`
 > 结论口径：所有数字以本机实测或包内元数据为准，文章中的性能数据一律标注为「上游数据」。
 > 状态：**评估与 PoC 已完成，尚未改动产品代码**。落地范围需产品决策，见第 8 节。
+> **修订（同日）**：第 6 节建议的独立 `SimdCodecs.Enhance` 项目，已被 [07-模块集成评估-SimdPaddleOCR.md](07-模块集成评估-SimdPaddleOCR.md) 第 5 节修订为「增强 + OCR 合并的 `SimdCodecs.Document` 模块」。本文件的事实核对、实测数据、三条硬约束与锁版本结论**仍然有效**，实施时按 07 的合并方案一次做完。
 
 ---
 
@@ -169,7 +170,7 @@ public sealed class GcdrEnhancer : IDisposable
 
 ---
 
-## 6. 推荐模块设计
+## 6. 推荐模块设计（已被 07 第 5 节修订，保留作决策依据）
 
 ### 6.1 分层与依赖方向
 
